@@ -1,0 +1,56 @@
+LOGIN
+usuário
+#login > div > div:nth-child(2) > div > form > div:nth-child(2) > input
+
+senha
+#password
+
+chave de acesso
+#login > div > div:nth-child(2) > div > form > div:nth-child(4) > input
+
+entrar
+#login > div > div:nth-child(2) > div > form > button
+
+CADASTRO DE BOBINA
+
+botão novo
+body > div.modal.zindex.ng-scope.ng-isolate-scope.in > div > div > div.modal-footer.ng-scope > div > button
+
+numero rua
+#egsForm > div > egs-input-text:nth-child(1) > input
+
+diâmetro/comprimento
+#egsForm > div > egs-input-text:nth-child(2) > input
+
+formato
+#egsForm > div > egs-input-text:nth-child(3) > input
+
+peso
+#egsForm > div > egs-input-text:nth-child(4) > input
+
+gramatura
+#egsForm > div > egs-input-text:nth-child(5) > input
+
+observação (gostaria que a observação puxasse o código do produto do fornecedor para fins de rastreio)
+#egsForm > div > egs-input-text:nth-child(10) > input
+
+gramatura média
+#egsForm > div > egs-input-text:nth-child(6) > input
+
+metragem da bobina
+#egsForm > div > egs-input-text:nth-child(7) > input
+
+não conformidade
+#egsForm > div > egs-input-text:nth-child(9) > input
+
+quantidade
+#egsForm > egs-input-number:nth-child(3) > input
+
+saldo a classificar
+#egsForm > egs-input-number:nth-child(4) > input
+
+botão salvar
+body > div:nth-child(1) > div > div > div.modal-footer.ng-scope > div > div:nth-child(2) > egs-button-save-popup > button
+
+botão sair
+body > div:nth-child(1) > div > div > div.modal-footer.ng-scope > div > div.col-xs-6.btn-after > egs-button-close-popup > button

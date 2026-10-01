@@ -1,0 +1,30 @@
+# Credenciais e configuração desta máquina
+config.py
+.env
+.env.*
+!.env.example
+
+# Ambiente Python e arquivos gerados
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Dados da operação e documentos
+historico_cadastro.json
+logs/
+*.pdf
+*.xlsx
+*.xls
+
+# Arquivos locais de editores e do sistema
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

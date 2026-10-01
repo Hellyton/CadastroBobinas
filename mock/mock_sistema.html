@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Mock EGS - Ambiente de Teste</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  input { display: block; margin: 4px 0 12px; padding: 4px; }
+  button { padding: 6px 14px; margin: 4px 4px 4px 0; }
+  .modal { border: 2px solid #333; background: #f5f5f5; padding: 16px; margin-top: 16px; max-width: 420px; }
+  .aviso { color: #b00; font-weight: bold; }
+  #log { background: #111; color: #0f0; font-family: monospace; padding: 10px; margin-top: 20px; height: 160px; overflow-y: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<!-- ===================== TELA DE LOGIN ===================== -->
+<div id="login">
+  <div>
+    <div>filler-1</div>
+    <div>
+      <div>
+        <h2>Mock EGS Sistemas (ambiente de teste)</h2>
+        <form id="form-login">
+          <div>Usuário</div>
+          <div><input type="text" id="campo-usuario"></div>
+          <div>
+            Senha
+            <input type="password" id="password">
+          </div>
+          <div><input type="text" id="campo-chave-acesso" placeholder="Chave de acesso"></div>
+          <button type="submit">Entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TELA "LISTA" (após login) ===================== -->
+<div id="app" style="display:none">
+  <h2>Classificação de Bobinas (nota fictícia de teste)</h2>
+  <div id="egsForm">
+    <div>filler-1</div>
+    <div>filler-2</div>
+    <egs-input-number>
+      <label>Quantidade Classificada (kg)</label>
+      <input id="campo-quantidade-classificada" readonly>
+    </egs-input-number>
+    <egs-input-number>
+      <label>Saldo a Classificar (kg)</label>
+      <input id="campo-saldo-classificar" readonly>
+    </egs-input-number>
+    <div>filler-5</div>
+    <div>filler-6</div>
+    <div>
+      <ul>
+        <li>
+          <egs-button-new>
+            <button type="button">
+              <i id="icone-novo" style="font-style: normal; cursor: pointer;">[ + Novo ]</i>
+            </button>
+          </egs-button-new>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <table id="tabela-classificadas" border="1" cellpadding="4" style="margin-top: 16px; border-collapse: collapse;">
+    <thead><tr><th>Bobina</th><th>Peso</th><th>Diâmetro</th><th>Formato</th><th>Gramatura</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="log"></div>
+
+<script>
+const SALDO_INICIAL = 25000; // kg - ajuste aqui se quiser simular outro total
+let saldoClassificar = SALDO_INICIAL;
+let quantidadeClassificada = 0;
+
+function log(msg) {
+  const el = document.getElementById("log");
+  el.textContent += msg + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+function fmt(numero) {
+  return numero.toLocaleString("pt-BR");
+}
+
+function atualizarSaldo() {
+  document.getElementById("campo-quantidade-classificada").value = fmt(quantidadeClassificada);
+  document.getElementById("campo-saldo-classificar").value = fmt(saldoClassificar);
+}
+
+// ---- Login ----
+document.getElementById("form-login").addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  atualizarSaldo();
+  log("[mock] login OK, tela de lista carregada. Saldo inicial: " + fmt(SALDO_INICIAL) + " kg");
+});
+
+// ---- Abrir modal (botão Novo) ----
+document.getElementById("icone-novo").addEventListener("click", function () {
+  if (document.getElementById("modal-classificacao")) return; // já aberto
+  abrirModal();
+});
+
+function abrirModal() {
+  const wrapper = document.createElement("div");
+  wrapper.id = "modal-classificacao";
+
+  wrapper.innerHTML = `
+    <div>
+      <div>
+        <div id="egsForm">
+          <div>
+            <egs-input-text><input id="campo-rua" placeholder="Rua"></egs-input-text>
+            <egs-input-text><input id="campo-diametro" placeholder="Diâmetro"></egs-input-text>
+            <egs-input-text><input id="campo-formato" placeholder="Formato"></egs-input-text>
+            <egs-input-text><input id="campo-peso" placeholder="Peso"></egs-input-text>
+            <egs-input-text><input id="campo-gramatura" placeholder="Gramatura"></egs-input-text>
+            <egs-input-text><input id="campo-gramatura-media" placeholder="(calculado)" readonly></egs-input-text>
+            <egs-input-text><input id="campo-metragem" placeholder="(calculado)" readonly></egs-input-text>
+            <egs-input-text><input id="campo-filler-8" style="display:none"></egs-input-text>
+            <egs-input-text><input id="campo-nao-conformidade" readonly></egs-input-text>
+            <egs-input-text><input id="campo-observacao" placeholder="Observação"></egs-input-text>
+          </div>
+        </div>
+        <div class="modal-footer ng-scope">
+          <div>
+            <div class="col-xs-6 btn-after">
+              <egs-button-close-popup><button type="button" id="btn-sair">Sair</button></egs-button-close-popup>
+            </div>
+            <div>
+              <egs-button-save-popup><button type="button" id="btn-salvar">Salvar</button></egs-button-save-popup>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Insere como PRIMEIRO filho do body, pra bater com o seletor
+  // "body > div:nth-child(1)" usado pelos botões Salvar/Sair.
+  document.body.insertBefore(wrapper, document.body.firstChild);
+
+  let popupPesoJaMostrado = false;
+
+  document.getElementById("campo-peso").addEventListener("focus", function () {
+    if (popupPesoJaMostrado) return;
+    popupPesoJaMostrado = true;
+    mostrarPopupPeso();
+  });
+
+  document.getElementById("campo-gramatura").addEventListener("blur", function () {
+    // Simula o pequeno delay do sistema real pra calcular os campos.
+    setTimeout(function () {
+      const peso = parseFloat(document.getElementById("campo-peso").value) || 0;
+      const gramatura = parseFloat(document.getElementById("campo-gramatura").value) || 0;
+      document.getElementById("campo-gramatura-media").value = gramatura.toFixed(1);
+      document.getElementById("campo-metragem").value = gramatura > 0
+        ? Math.round((peso / gramatura) * 1000)
+        : "0";
+    }, 400);
+  });
+
+  document.getElementById("btn-sair").addEventListener("click", function () {
+    log("[mock] modal fechado sem salvar (Sair).");
+    wrapper.remove();
+  });
+
+  document.getElementById("btn-salvar").addEventListener("click", function () {
+    const rua = document.getElementById("campo-rua").value;
+    const peso = parseFloat(document.getElementById("campo-peso").value) || 0;
+    const diametro = document.getElementById("campo-diametro").value;
+    const formato = document.getElementById("campo-formato").value;
+    const gramatura = document.getElementById("campo-gramatura").value;
+    const observacao = document.getElementById("campo-observacao").value;
+
+    if (!peso) {
+      alert("Peso não pode ser zero!");
+      return;
+    }
+
+    saldoClassificar -= peso;
+    quantidadeClassificada += peso;
+    atualizarSaldo();
+
+    const linha = document.querySelector("#tabela-classificadas tbody").insertRow();
+    linha.innerHTML = `<td>${observacao}</td><td>${peso}</td><td>${diametro}</td><td>${formato}</td><td>${gramatura}</td>`;
+
+    log(`[mock] bobina salva -> obs: ${observacao}, rua: ${rua}, peso: ${peso} kg. Saldo restante: ${fmt(saldoClassificar)} kg`);
+
+    wrapper.remove();
+  });
+}
+
+function mostrarPopupPeso() {
+  const popup = document.createElement("div");
+  popup.className = "modal zindex ng-scope ng-isolate-scope in";
+  popup.innerHTML = `
+    <div>
+      <div>
+        <p class="aviso">Peso da bobina não pode ser zero!</p>
+        <div class="modal-footer ng-scope">
+          <div>
+            <button type="button" id="btn-ok-popup-peso">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  document.getElementById("btn-ok-popup-peso").addEventListener("click", function () {
+    popup.remove();
+  });
+}
+</script>
+</body>
+</html>
