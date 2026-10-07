@@ -28,6 +28,12 @@ continuação e interrupção. A pausa e a interrupção aguardam a operação d
 bobina atual terminar. Em romaneios com vários produtos, a janela solicita
 a escolha do próximo produto e a confirmação da nota.
 
+Antes de cada bobina, o programa verifica se o saldo da nota comporta o peso.
+Saldo zerado, insuficiente ou ilegível para o lote e mantém as bobinas restantes
+pendentes. O sucesso só é registrado quando o formulário fecha e o saldo diminui
+pelo peso da bobina. Se essa confirmação falhar, confira o cadastro no EGS antes
+de tentar novamente; a bobina não entra automaticamente no histórico local.
+
 O histórico local ajuda a evitar recadastros por fornecedor e número da
 bobina. Confira o sistema antes de retomar um cadastro que apresentou erro.
 

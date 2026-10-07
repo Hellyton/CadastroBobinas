@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
-from app.navegador import Navegador
+from app.navegador import Navegador, SalvamentoNaoConfirmado
+import math
 from app.logger import logger
 from app.controle import ControleCadastro, CadastroInterrompido
 from app.historico import (
@@ -62,6 +63,7 @@ class CadastroBobinas:
         self.falhas = []
         self.total = len(bobinas)
         self.ignoradas = 0
+        self.motivo_parada = ""
         navegador = Navegador()
         try:
             self.controle.verificar()
@@ -75,7 +77,14 @@ class CadastroBobinas:
     def _resultado(self, interrompido=False):
         return dict(sucessos=len(self.sucessos), falhas=len(self.falhas),
                     total=self.total, ignoradas=self.ignoradas,
-                    interrompido=interrompido)
+                    interrompido=interrompido, motivo_parada=self.motivo_parada)
+
+    def _parar_por_saldo(self, motivo):
+        self.motivo_parada = motivo
+        logger.warning(motivo)
+        self.evento("status", texto=motivo)
+        print(motivo)
+        return self._resultado()
 
     def _confirmar(self, mensagem, opcoes=None):
         self.controle.verificar()
@@ -188,6 +197,16 @@ class CadastroBobinas:
                 # Não interrompe um salvamento em andamento: termina a
                 # bobina atual e atende pausa/interrupção antes da próxima.
                 self.controle.verificar()
+                saldo = navegador.ler_saldo_classificar()
+                if saldo is None or not math.isfinite(saldo):
+                    return self._parar_por_saldo(
+                        f"Não foi possível conferir o saldo da nota para a bobina "
+                        f"{bobina.numero}. Cadastro parado; confira o EGS.")
+                if saldo <= 0 or bobina.peso > saldo or bobina.peso <= 0:
+                    return self._parar_por_saldo(
+                        f"Cadastro parado antes da bobina {bobina.numero}: "
+                        f"saldo da nota {saldo:g} kg, peso da bobina {bobina.peso} kg. "
+                        "Confira o saldo e a nota no EGS. As restantes estão pendentes.")
                 cadastradas += 1
                 self.evento("status", texto=(
                     f"Cadastrando bobina {cadastradas} de {total} "
@@ -201,7 +220,7 @@ class CadastroBobinas:
                 try:
                     navegador.clicar_novo()
                     navegador.preencher_bobina(bobina)
-                    navegador.salvar()
+                    navegador.salvar(peso=bobina.peso, saldo_antes=saldo)
 
                     if usar_historico:
                         marcar_cadastrada(bobina.numero, bobina.fornecedor)
@@ -212,6 +231,11 @@ class CadastroBobinas:
                         f"Bobina {bobina.numero} ({produto}) cadastrada "
                         "com sucesso."
                     )
+
+                except SalvamentoNaoConfirmado as erro:
+                    falhas.append(bobina)
+                    return self._parar_por_saldo(
+                        f"Bobina {bobina.numero}: {erro} Cadastro parado para conferência.")
 
                 except Exception as erro:
 

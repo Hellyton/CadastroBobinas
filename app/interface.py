@@ -443,12 +443,20 @@ class App(ctk.CTk):
         else:
             resultado = dados["resultado"]
             titulo = "Cadastro interrompido" if resultado["interrompido"] else "Cadastro finalizado"
+            motivo = resultado.get("motivo_parada", "")
+            if motivo:
+                titulo = "Cadastro parado para conferência"
             pendentes = resultado["total"] - resultado["sucessos"] - resultado["falhas"]
             texto = (f"{titulo}: {resultado['sucessos']} cadastradas, "
                      f"{resultado['falhas']} falhas, {pendentes} não processadas e "
                      f"{resultado['ignoradas']} já no histórico.")
+            if motivo:
+                texto += "\n" + motivo
             self.status.configure(text=texto)
-            messagebox.showinfo(titulo, texto, parent=self)
+            if motivo:
+                messagebox.showwarning(titulo, texto, parent=self)
+            else:
+                messagebox.showinfo(titulo, texto, parent=self)
 
     def fechar_janela(self):
         if not self._executando:

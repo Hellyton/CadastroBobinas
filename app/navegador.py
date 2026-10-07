@@ -1,5 +1,6 @@
 from playwright.sync_api import sync_playwright
 import config
+import math
 from app.logger import logger
 
 
@@ -32,6 +33,10 @@ SEL_BOTAO_SAIR = (
     "body > div:nth-child(1) > div > div > div.modal-footer.ng-scope "
     "> div > div.col-xs-6.btn-after > egs-button-close-popup > button"
 )
+
+
+class SalvamentoNaoConfirmado(RuntimeError):
+    """O EGS não apresentou evidência suficiente para registrar sucesso."""
 
 
 class Navegador:
@@ -250,17 +255,40 @@ class Navegador:
             # Popup não apareceu dessa vez, segue o jogo.
             pass
 
-    def salvar(self):
-        """Clica em Salvar e aguarda o modal fechar (volta pra lista)."""
+    def salvar(self, peso=None, saldo_antes=None):
+        """Só confirma sucesso com formulário fechado e saldo atualizado."""
+        if saldo_antes is None:
+            saldo_antes = self.ler_saldo_classificar()
+        if peso is None:
+            peso = self._parse_numero(self.page.input_value(SEL_PESO))
+        if (saldo_antes is None or peso is None
+                or not math.isfinite(saldo_antes) or not math.isfinite(peso)
+                or peso <= 0 or saldo_antes <= 0 or peso > saldo_antes):
+            raise SalvamentoNaoConfirmado(
+                "Saldo insuficiente, zerado ou não reconhecido. "
+                "Nenhum salvamento foi solicitado; confira a nota no EGS.")
 
-        self.page.click(SEL_BOTAO_SALVAR)
-
-        # Aguarda o modal sumir da tela antes de seguir pra próxima bobina
-        self.page.wait_for_selector(
-            SEL_BOTAO_SALVAR,
-            state="detached",
-            timeout=10000
-        )
+        try:
+            self.page.click(SEL_BOTAO_SALVAR)
+            # O fechamento isolado também pode ocorrer após uma rejeição.
+            # Aguarda a atualização assíncrona do saldo, inclusive para zero.
+            self.page.wait_for_function(
+                """(dados) => {
+                    if (document.querySelector(dados.salvar)) return false;
+                    const campo = document.querySelector(dados.saldo);
+                    if (!campo || !campo.value.trim()) return false;
+                    const saldo = Number(campo.value.trim()
+                        .replace(/\\./g, '').replace(',', '.'));
+                    return Number.isFinite(saldo)
+                        && Math.abs(saldo - dados.esperado) < 0.01;
+                }""",
+                arg=dict(salvar=SEL_BOTAO_SALVAR, saldo=SEL_SALDO_CLASSIFICAR,
+                         esperado=saldo_antes - peso), timeout=10000)
+        except Exception as erro:
+            raise SalvamentoNaoConfirmado(
+                "O salvamento não foi confirmado pelo saldo do EGS. "
+                "A bobina não foi marcada no histórico. Confira se ela "
+                "foi gravada no EGS antes de tentar novamente.") from erro
 
     def tentar_fechar_modal(self):
         """

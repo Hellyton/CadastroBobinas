@@ -52,7 +52,8 @@ class TestControleCadastro(unittest.TestCase):
     def test_interrupcao_termina_salvamento_e_nao_inicia_proxima(self):
         controle = ControleCadastro()
         navegador = Mock()
-        navegador.salvar.side_effect = controle.interromper
+        navegador.ler_saldo_classificar.return_value = 25000
+        navegador.salvar.side_effect = lambda **kwargs: controle.interromper()
         resultado = self.executar_cadastro(navegador, controle)
         self.assertTrue(resultado["interrompido"])
         self.assertEqual(resultado["sucessos"], 1)
@@ -69,7 +70,7 @@ class TestControleCadastro(unittest.TestCase):
 
     def test_progresso_contabiliza_sucessos_e_falhas(self):
         navegador = Mock()
-        navegador.ler_saldo_classificar.return_value = None
+        navegador.ler_saldo_classificar.return_value = 25000
         navegador.salvar.side_effect = [None, RuntimeError("Falha ao salvar")]
         eventos = []
         resultado = self.executar_cadastro(
@@ -86,11 +87,11 @@ class TestControleCadastro(unittest.TestCase):
     def test_pausa_durante_salvamento_segura_proxima_bobina(self):
         controle = ControleCadastro()
         navegador = Mock()
-        navegador.ler_saldo_classificar.return_value = None
+        navegador.ler_saldo_classificar.return_value = 25000
         primeira_salva, segunda_iniciada = Event(), Event()
         resultados = []
 
-        def salvar():
+        def salvar(**kwargs):
             if not primeira_salva.is_set():
                 controle.pausar()
                 primeira_salva.set()
