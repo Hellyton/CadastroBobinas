@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 import config
 import math
+import re
 from app.logger import logger
 
 
@@ -135,26 +136,67 @@ class Navegador:
             return None
 
     def preencher_bobina(self, bobina):
-        """Preenche o formulário de Classificação com os dados da bobina."""
+        """Confere o formulário após os recálculos e refaz valores apagados."""
+        self._campos_esperados = None
+        campos = {
+            SEL_RUA: str(bobina.rua),
+            SEL_DIAMETRO: str(bobina.diametro),
+            SEL_FORMATO: str(bobina.formato),
+            SEL_PESO: str(bobina.peso),
+            SEL_GRAMATURA: str(bobina.gramatura),
+            SEL_OBSERVACAO: str(bobina.numero),
+        }
+        for tentativa in range(1, 4):
+            self._preencher_campos(bobina)
+            try:
+                self._aguardar_campos_calculados()
+            except Exception:
+                divergencias = self._campos_divergentes(campos)
+                if not divergencias or tentativa == 3:
+                    raise
+                logger.warning(f"EGS apagou/alterou campos antes do cálculo: {divergencias}. Refazendo preenchimento.")
+                continue
+            self.page.fill(SEL_OBSERVACAO + ":visible", str(bobina.numero))
+            divergencias = self._campos_divergentes(campos)
+            if not divergencias:
+                self._campos_esperados = campos
+                return
+            logger.warning(f"Campos alterados pelo EGS após preenchimento ({tentativa}/3): {divergencias}")
+        raise RuntimeError(
+            f"O EGS apagou ou alterou campos da bobina {bobina.numero}: "
+            f"{divergencias}. O formulário não será salvo.")
 
-        # Só a Rua usa preenchimento com conferência: é o primeiro campo
-        # preenchido logo que o modal abre, e foi o único que na prática
-        # apareceu sendo limpo pelo sistema (provavelmente ainda
-        # inicializando o formulário nesse instante). Os demais campos
-        # não mostraram esse problema, então usam fill() direto - mais
-        # rápido, sem espera extra.
-        self._fill_verificado(SEL_RUA, str(bobina.rua))
+    def _campos_divergentes(self, campos):
+        divergencias = {}
+        for seletor, esperado in campos.items():
+            atual = self.page.input_value(seletor + ":visible").strip()
+            if seletor == SEL_OBSERVACAO:
+                igual = atual == esperado
+            else:
+                igual = self._parse_numero(atual) == float(esperado)
+            if not igual:
+                divergencias[seletor] = {"esperado": esperado, "atual": atual}
+        return divergencias
 
-        self.page.fill(SEL_DIAMETRO, str(bobina.diametro))
-        self.page.fill(SEL_FORMATO, str(bobina.formato))
+    def _preencher_campos(self, bobina):
 
-        # O campo Peso mostra um popup de aviso ("Peso não pode ser zero!")
-        # assim que recebe foco, antes de digitar qualquer valor.
-        self.page.click(SEL_PESO)
+        self._fill_verificado(SEL_RUA + ":visible", str(bobina.rua))
+        self.page.fill(SEL_DIAMETRO + ":visible", str(bobina.diametro))
+        self.page.fill(SEL_FORMATO + ":visible", str(bobina.formato))
+
+        self.page.click(SEL_PESO + ":visible")
         self._fechar_popup_peso()
-        self.page.fill(SEL_PESO, str(bobina.peso))
+        self.page.fill(SEL_PESO + ":visible", str(bobina.peso))
 
-        self.page.fill(SEL_GRAMATURA, str(bobina.gramatura))
+        # Alguns avisos recriam os primeiros campos. Recupera somente
+        # os valores que o EGS apagou, sem esperar ou refazer o modal.
+        iniciais = {SEL_RUA: str(bobina.rua),
+                    SEL_DIAMETRO: str(bobina.diametro),
+                    SEL_FORMATO: str(bobina.formato)}
+        for seletor in self._campos_divergentes(iniciais):
+            self.page.fill(seletor + ":visible", iniciais[seletor])
+
+        self.page.fill(SEL_GRAMATURA + ":visible", str(bobina.gramatura))
 
         # Tira o foco do campo Gramatura (dispara o blur) para o sistema
         # calcular Gramatura Média e Metragem da bobina, ANTES de mexer
@@ -162,44 +204,28 @@ class Navegador:
         # o próprio recálculo do sistema pode estar resetando o campo.
         self.page.keyboard.press("Tab")
 
-        self._aguardar_campos_calculados()
-
-        self.page.fill(SEL_OBSERVACAO, str(bobina.numero))
-
-    def _fill_verificado(self, selector, valor, tentativas=4,
-                          tempo_max_espera_ms=400, intervalo_ms=50):
+    def _fill_verificado(self, selector, valor, tentativas=4):
         """
-        Preenche um campo e confere se o valor realmente permaneceu nele.
-        Em vez de esperar um tempo fixo, confere em intervalos curtos e
-        segue assim que o valor colar - na maioria das vezes é bem mais
-        rápido que esperar o tempo máximo. Se o sistema tiver limpado o
-        campo (ex: recálculo interno rodando logo após o modal abrir),
-        tenta de novo, até um número máximo de tentativas. Levanta erro
-        se mesmo assim o valor não ficar — melhor falhar essa bobina do
-        que salvar um cadastro com campo vazio.
+        Confere o preenchimento sem uma pausa fixa por bobina.
+        Alterações posteriores são verificadas após o cálculo e antes
+        de salvar. Só aguarda brevemente quando o campo perdeu o valor.
         """
 
         for tentativa in range(1, tentativas + 1):
 
             self.page.fill(selector, valor)
 
-            tempo_decorrido_ms = 0
-            valor_atual = None
-
-            while tempo_decorrido_ms < tempo_max_espera_ms:
-                self.page.wait_for_timeout(intervalo_ms)
-                tempo_decorrido_ms += intervalo_ms
-
-                valor_atual = self.page.input_value(selector)
-
-                if valor_atual == valor:
-                    return
+            valor_atual = self.page.input_value(selector)
+            if valor_atual == valor:
+                return
 
             logger.warning(
                 f"Campo {selector} não reteve o valor '{valor}' na "
                 f"tentativa {tentativa}/{tentativas} (ficou "
                 f"'{valor_atual}'). Tentando novamente..."
             )
+            if tentativa < tentativas:
+                self.page.wait_for_timeout(50)
 
         raise RuntimeError(
             f"Campo {selector} não reteve o valor '{valor}' após "
@@ -225,7 +251,7 @@ class Navegador:
                 "Tentando disparar o cálculo de novo..."
             )
 
-        self.page.click(SEL_GRAMATURA)
+        self.page.click(SEL_GRAMATURA + ":visible")
         self.page.keyboard.press("Tab")
 
         self._esperar_calculo(timeout=8000)
@@ -250,7 +276,15 @@ class Navegador:
         """Fecha o popup de 'Peso não pode ser zero', se ele aparecer."""
 
         try:
-            self.page.click(SEL_OK_POPUP_PESO, timeout=3000)
+            # O seletor antigo aceitava qualquer aviso com esse layout.
+            # Fecha somente o aviso de peso zero, preservando erros do EGS.
+            popup = self.page.locator("div.modal.zindex:visible").filter(
+                has_text=re.compile(r"peso[\s\S]*zero", re.IGNORECASE))
+            botao = popup.locator(".modal-footer button").first
+            # Esse aviso é opcional: não aguarda três segundos quando
+            # ele não existe. O preenchimento já espera campos editáveis.
+            if botao.is_visible():
+                botao.click(timeout=1000)
         except Exception:
             # Popup não apareceu dessa vez, segue o jogo.
             pass
@@ -269,6 +303,12 @@ class Navegador:
                 "Nenhum salvamento foi solicitado; confira a nota no EGS.")
 
         try:
+            campos = getattr(self, "_campos_esperados", None)
+            if campos:
+                divergencias = self._campos_divergentes(campos)
+                if divergencias:
+                    raise SalvamentoNaoConfirmado(
+                        f"O EGS alterou campos antes de salvar: {divergencias}.")
             self.page.click(SEL_BOTAO_SALVAR)
             # O fechamento isolado também pode ocorrer após uma rejeição.
             # Aguarda a atualização assíncrona do saldo, inclusive para zero.
@@ -284,6 +324,8 @@ class Navegador:
                 }""",
                 arg=dict(salvar=SEL_BOTAO_SALVAR, saldo=SEL_SALDO_CLASSIFICAR,
                          esperado=saldo_antes - peso), timeout=10000)
+        except SalvamentoNaoConfirmado:
+            raise
         except Exception as erro:
             raise SalvamentoNaoConfirmado(
                 "O salvamento não foi confirmado pelo saldo do EGS. "

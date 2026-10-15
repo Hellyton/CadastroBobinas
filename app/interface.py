@@ -103,6 +103,43 @@ class App(ctk.CTk):
 
         self.total.pack(pady=(0, 15))
 
+        # Resumo por produto, antes da lista de bobinas.
+        self.frame_resumo = ctk.CTkFrame(self)
+        self.frame_resumo.pack(fill="x", padx=20, pady=(0, 5))
+        ctk.CTkLabel(
+            self.frame_resumo,
+            text="Peso por produto",
+            font=("Arial", 15, "bold")
+        ).pack(anchor="w", padx=10, pady=(5, 0))
+
+        frame_totais = ctk.CTkFrame(self.frame_resumo, fg_color="transparent")
+        frame_totais.pack(fill="x", padx=10, pady=5)
+        self.resumo_produtos = ttk.Treeview(
+            frame_totais,
+            columns=("produto", "quantidade", "peso_total"),
+            show="headings",
+            height=3,
+            selectmode="none"
+        )
+        self.resumo_produtos.heading("produto", text="Produto")
+        self.resumo_produtos.heading("quantidade", text="Bobinas")
+        self.resumo_produtos.heading("peso_total", text="Peso total (kg)")
+        self.resumo_produtos.column("produto", width=400, minwidth=200)
+        self.resumo_produtos.column("quantidade", width=100, minwidth=80, anchor="center")
+        self.resumo_produtos.column("peso_total", width=160, minwidth=120, anchor="e")
+        barra_resumo = ttk.Scrollbar(
+            frame_totais, orient="vertical", command=self.resumo_produtos.yview
+        )
+        self.resumo_produtos.configure(yscrollcommand=barra_resumo.set)
+        self.resumo_produtos.pack(side="left", fill="x", expand=True)
+        barra_resumo.pack(side="right", fill="y")
+        self.nota_resumo = ctk.CTkLabel(
+            self.frame_resumo,
+            text="Selecione um romaneio para ver os totais por produto.",
+            anchor="w", justify="left", wraplength=850
+        )
+        self.nota_resumo.pack(anchor="w", padx=10, pady=(0, 5))
+
         # ==========================
         # Frame da tabela
         # ==========================
@@ -131,7 +168,7 @@ class App(ctk.CTk):
             self.frame_tabela,
             columns=colunas,
             show="headings",
-            height=18
+            height=8
         )
 
         self.tabela.heading("numero", text="Bobina")
@@ -225,6 +262,10 @@ class App(ctk.CTk):
         self.botao_interromper = ctk.CTkButton(self.frame_botoes, text="Interromper",
                                               state="disabled", command=self.interromper_cadastro)
         self.botao_interromper.pack(side="left", padx=10)
+        # Reserva o espaço dos controles antes de expandir a tabela.
+        self.frame_botoes.pack_configure(side="bottom", before=self.frame_tabela)
+        self.progresso.pack_configure(side="bottom", before=self.frame_tabela)
+        self.status.pack_configure(side="bottom", before=self.frame_tabela)
         self.after(100, self.processar_eventos)
 
     def abrir_pdf(self):
@@ -316,6 +357,7 @@ class App(ctk.CTk):
         self.total.configure(
             text=f"Bobinas encontradas: {len(self.bobinas)}  |  {texto_peso}"
         )
+        self.atualizar_resumo_produtos()
 
         if len(self.bobinas) > 0:
             self.botao_exportar.configure(state="normal")
@@ -323,6 +365,33 @@ class App(ctk.CTk):
         else:
             self.botao_exportar.configure(state="disabled")
             self.botao_cadastro.configure(state="disabled")
+
+    def atualizar_resumo_produtos(self):
+        # Soma todas as bobinas do mesmo produto, independentemente de
+        # gramatura, formato ou diâmetro.
+        grupos = {}
+        for bobina in self.bobinas:
+            totais = grupos.setdefault(bobina.produto, [0, 0])
+            totais[0] += 1
+            totais[1] += bobina.peso
+
+        for item in self.resumo_produtos.get_children():
+            self.resumo_produtos.delete(item)
+
+        for produto, (quantidade, peso) in grupos.items():
+            self.resumo_produtos.insert(
+                "", "end",
+                values=(produto, quantidade, f"{peso:,}".replace(",", "."))
+            )
+
+        if grupos:
+            nota = "Totais calculados a partir dos pesos das bobinas."
+            if self.ajuste_peso:
+                ajuste = f"{self.ajuste_peso:,}".replace(",", ".")
+                nota += f"\nAjuste do romaneio: {ajuste} kg, aplicado apenas ao total geral."
+        else:
+            nota = "Nenhum produto encontrado no romaneio."
+        self.nota_resumo.configure(text=nota)
 
     def iniciar_cadastro(self):
         if self._executando or not getattr(self, "bobinas", None):
@@ -388,7 +457,8 @@ class App(ctk.CTk):
                         self.escolha_produto.pack(before=self.botao_confirmar, pady=5)
                     else:
                         self.escolha_produto.pack_forget()
-                    self.frame_confirmacao.pack(before=self.frame_botoes, fill="x", padx=20)
+                    self.frame_confirmacao.pack(side="bottom", before=self.progresso,
+                                                fill="x", padx=20)
                 elif tipo in ("finalizado", "erro"):
                     self.encerrar_cadastro(tipo, dados)
         except Empty:

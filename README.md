@@ -23,6 +23,12 @@ Selecione o romaneio, confira o fornecedor e os dados, e clique em
 **Iniciar Cadastro**. Quando solicitado pela janela, abra a classificação no
 navegador, selecione a nota correspondente e clique em **Continuar**.
 
+A seção **Peso por produto** mostra a quantidade de bobinas e o peso total
+em kg de cada produto (por exemplo, RECICLADO e MIOLO), somando todas as
+suas bobinas, independentemente de gramatura ou formato.
+Os ajustes do romaneio aparecem no total geral, sem serem atribuídos a um
+produto específico.
+
 O cadastro executa em segundo plano, com progresso e controles de pausa,
 continuação e interrupção. A pausa e a interrupção aguardam a operação da
 bobina atual terminar. Em romaneios com vários produtos, a janela solicita
