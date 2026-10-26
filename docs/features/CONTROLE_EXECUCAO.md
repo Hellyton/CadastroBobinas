@@ -43,13 +43,17 @@ pausa; verificar lança CadastroInterrompido. Worker captura demais exceções e
 publica erro; UI mostra diálogo e reativa controles ao encerrar.
 
 ## Interface do usuário
-Iniciar Cadastro, Pausar/Continuar, Interromper, barra, status e painel de confirmação
-com seleção de produto quando aplicável. Exportação permanece disponível.
+Iniciar Cadastro, Pausar/Continuar, Interromper, barra com percentual e status visual.
+Confirmações aparecem em diálogo escuro rolável, com seleção do grupo quando
+aplicável. “Interromper cadastro”, Escape ou fechar esse diálogo interrompem o lote
+pelos pontos cooperativos existentes. Exportação permanece disponível.
 
 ## Testes relacionados
 [test_controle_cadastro.py](../../tests/test_controle_cadastro.py), 7 testes:
 pausa, desbloqueio, interrupção após salvar, fechamento em login falho, contagem,
 pausa durante salvamento e interrupção enquanto aguarda confirmação.
+[test_interface.py](../../tests/test_interface.py) também verifica entrega da
+escolha, interrupção do diálogo e percentual de resultado parcial.
 
 ## Limitações conhecidas
 Encerramento aguarda chamadas/timeouts; não há retomada de checkpoint. PDF ainda

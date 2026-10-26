@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import Mock, patch
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from app.modelos import Bobina
 from app.navegador import (
@@ -17,8 +18,6 @@ class TestPreenchimento(unittest.TestCase):
         self.valores = {}
         self.page.fill.side_effect = lambda seletor, valor: self.valores.update({seletor: valor})
         self.page.input_value.side_effect = lambda seletor: self.valores.get(seletor, "")
-        self.botao_popup = self.page.locator.return_value.filter.return_value.locator.return_value.first
-        self.botao_popup.is_visible.return_value = False
         logger = patch("app.navegador.logger")
         logger.start()
         self.addCleanup(logger.stop)
@@ -66,20 +65,33 @@ class TestPreenchimento(unittest.TestCase):
         self.assertEqual(self.page.fill.call_count, 4)
 
     def test_preenchimento_normal_nao_tem_pausas_fixas(self):
-        self.navegador.preencher_bobina(self.bobina)
+        with patch.object(self.navegador, "_fechar_popup_peso", return_value=False):
+            self.navegador.preencher_bobina(self.bobina)
         self.page.wait_for_timeout.assert_not_called()
-        self.botao_popup.click.assert_not_called()
         self.assertEqual(self.page.fill.call_args_list[0].args[0], SEL_RUA + ":visible")
 
     def test_aviso_ausente_nao_espera_click_expirar(self):
-        self.navegador._fechar_popup_peso()
-        self.botao_popup.is_visible.assert_called_once()
-        self.botao_popup.click.assert_not_called()
+        aviso = self.page.get_by_text.return_value.filter.return_value.first
+        aviso.wait_for.side_effect = PlaywrightTimeoutError("timeout")
+        self.assertFalse(self.navegador._fechar_popup_peso())
+        aviso.wait_for.assert_called_once_with(state="visible", timeout=3000)
+        aviso.locator.assert_not_called()
 
     def test_aviso_presente_e_fechado(self):
-        self.botao_popup.is_visible.return_value = True
-        self.navegador._fechar_popup_peso()
-        self.botao_popup.click.assert_called_once_with(timeout=1000)
+        aviso = self.page.get_by_text.return_value.filter.return_value.first
+        popup = aviso.locator.return_value
+        botao = popup.get_by_role.return_value
+        self.assertTrue(self.navegador._fechar_popup_peso())
+        aviso.wait_for.assert_called_once_with(state="visible", timeout=3000)
+        botao.click.assert_called_once_with(timeout=3000)
+        popup.wait_for.assert_called_once_with(state="hidden", timeout=3000)
+
+    def test_falha_ao_clicar_aviso_identificado_nao_e_ignorada(self):
+        aviso = self.page.get_by_text.return_value.filter.return_value.first
+        botao = aviso.locator.return_value.get_by_role.return_value
+        botao.click.side_effect = RuntimeError("click failed")
+        with self.assertRaisesRegex(RuntimeError, "apareceu, mas não foi possível fechá-lo"):
+            self.navegador._fechar_popup_peso()
 
     def test_campo_apagado_antes_salvar_nao_clica_salvar(self):
         self.navegador.preencher_bobina(self.bobina)

@@ -46,7 +46,7 @@ resume o necessário para retomar. Não transforme sugestões em requisitos apro
 Valide links, caminhos, títulos do modelo de funcionalidade e ausência de segredos
 após alterações documentais. Evite uma auditoria completa a cada manutenção.
 
-## Validação desta entrega
+## Validação da entrega inicial da documentação
 
 Em 2026-10-15: 28 arquivos Markdown, 12 funcionalidades, 325 links locais e 19
 âncoras conferidos; estrutura obrigatória e 14 seções de cada funcionalidade
@@ -54,3 +54,7 @@ validadas. SHA-256 confirmou preservação de 26 arquivos preexistentes, incluin
 fontes, testes locais, configuração e histórico. A verificação de credenciais
 locais e padrões de segredos não encontrou exposição nos documentos. Resultado
 da suíte e limitações de homologação estão no [guia](DEVELOPMENT_GUIDE.md).
+
+O índice atual contém 13 funcionalidades, incluindo a conferência opcional de NF.
+As alterações posteriores e suas verificações estão no [estado atual](CURRENT_STATE.md)
+e no [histórico de mudanças](CHANGELOG.md).

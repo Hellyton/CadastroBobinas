@@ -1,6 +1,5 @@
-from collections import OrderedDict
-
 from app.navegador import Navegador, SalvamentoNaoConfirmado
+from app.agrupamento import agrupar_bobinas, produtos_com_variantes
 import math
 from app.logger import logger
 from app.controle import ControleCadastro, CadastroInterrompido
@@ -54,7 +53,8 @@ class CadastroBobinas:
             print("Opção inválida, tente novamente.")
 
     def iniciar(self, bobinas, ajuste_peso=0, url=None, usar_historico=True,
-                controle=None, evento=None, solicitar=None):
+                controle=None, evento=None, solicitar=None,
+                rotulos_grupos=None, numero_romaneio=None):
         # O navegador nasce, trabalha e fecha na mesma thread.
         self.controle = controle or ControleCadastro()
         self.evento = evento or (lambda tipo, **dados: None)
@@ -64,11 +64,12 @@ class CadastroBobinas:
         self.total = len(bobinas)
         self.ignoradas = 0
         self.motivo_parada = ""
+        self.numero_romaneio = str(numero_romaneio).strip() if numero_romaneio is not None else ""
         navegador = Navegador()
         try:
             self.controle.verificar()
             return self._executar(navegador, bobinas, ajuste_peso, url,
-                                  usar_historico)
+                                  usar_historico, rotulos_grupos)
         except CadastroInterrompido:
             return self._resultado(interrompido=True)
         finally:
@@ -95,7 +96,8 @@ class CadastroBobinas:
         self.controle.verificar()
         return resposta
 
-    def _executar(self, navegador, bobinas, ajuste_peso, url, usar_historico):
+    def _executar(self, navegador, bobinas, ajuste_peso, url, usar_historico,
+                  rotulos_grupos=None):
 
         self.evento("status", texto="Abrindo o sistema e fazendo login...")
         navegador.abrir()
@@ -112,6 +114,9 @@ class CadastroBobinas:
             "Pressione ENTER aqui para iniciar o cadastro automático..."
         )
 
+        # A identidade por descrição precisa vir do lote completo; calcular
+        # variantes após o filtro de histórico poderia mudar os grupos.
+        variantes_produtos = produtos_com_variantes(bobinas)
         ja_cadastradas = carregar_historico() if usar_historico else set()
 
         saldo_inicial = navegador.ler_saldo_classificar()
@@ -133,15 +138,16 @@ class CadastroBobinas:
 
             pendentes.append(bobina)
 
-        # Agrupa as bobinas pendentes por produto, mantendo a ordem em que
-        # cada produto aparece pela primeira vez no romaneio. Isso é
-        # necessário porque um mesmo romaneio pode ter mais de um produto
-        # (ex: MIOLO e RECICLADO), e o sistema pode exigir que cada
-        # produto seja classificado em um registro/nota diferente.
-        grupos = OrderedDict()
-
-        for bobina in pendentes:
-            grupos.setdefault(bobina.produto, []).append(bobina)
+        # Agrupa por produto e separa pontas por largura, mantendo a ordem
+        # de aparição; cada grupo pode corresponder a uma aba/nota diferente.
+        grupos_originais = agrupar_bobinas(pendentes, variantes_produtos)
+        rotulos_grupos = rotulos_grupos or {}
+        grupos = {}
+        for chave, lista in grupos_originais.items():
+            rotulo = rotulos_grupos.get(chave, chave)
+            if rotulo in grupos:
+                raise ValueError(f"Rótulo de grupo duplicado: {rotulo!r}.")
+            grupos[rotulo] = lista
 
         total = len(pendentes)
         self.total = total
@@ -223,7 +229,11 @@ class CadastroBobinas:
                     navegador.salvar(peso=bobina.peso, saldo_antes=saldo)
 
                     if usar_historico:
-                        marcar_cadastrada(bobina.numero, bobina.fornecedor)
+                        if self.numero_romaneio:
+                            marcar_cadastrada(bobina.numero, bobina.fornecedor,
+                                             romaneio=self.numero_romaneio)
+                        else:
+                            marcar_cadastrada(bobina.numero, bobina.fornecedor)
 
                     sucessos.append(bobina)
 

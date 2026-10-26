@@ -37,16 +37,22 @@ pdfplumber lê arquivo local; [API_INTEGRATIONS](../API_INTEGRATIONS.md).
 Detecção e parser podem abrir/extrair o PDF em etapas separadas.
 
 ## Validações e exceções
-Cancelar diálogo retorna sem ação. Fornecedor não detectado exibe aviso; pode
-ser escolhido manualmente. Falhas de PDF não têm tratamento abrangente na UI.
+Cancelar diálogo retorna sem ação. Fornecedor não detectado exibe aviso escuro;
+pode ser escolhido manualmente. Falha de leitura limpa o lote anterior e desabilita
+cadastro/exportação, evitando usar registros antigos com o novo arquivo selecionado.
 
 ## Interface do usuário
-Selecionar Romaneio, nome do arquivo, menu de fornecedor, tabela e totais.
-Interface é de conferência, sem edição de registros.
+Selecionar/Trocar romaneio no cabeçalho; arquivo e fornecedor em painel próprio.
+O campo Nº do romaneio é extraído quando reconhecido pelo leitor de referência
+e pode ser preenchido/corrigido manualmente; é exigido antes do cadastro na interface.
+Interface escura com indicadores, tabela, busca, filtro e resumo por grupo.
+Ctrl+O abre o seletor. Interface é de conferência, sem edição de registros.
 
 ## Testes relacionados
 Não há teste unitário direto do leitor/detecção. `teste_ambiente.py` usa PDF
-manual contra mock; não foi executado nesta tarefa.
+manual contra mock; não foi executado nesta tarefa. `test_interface.py` verifica
+que falha de leitura invalida o lote anterior. PDF fornecido foi lido nesta alteração,
+sem executar cadastro no EGS.
 
 ## Limitações conhecidas
 Sem OCR, formatos específicos, descarte de linhas e extração na thread da janela;

@@ -90,3 +90,60 @@ implementação e não atribuem intenção histórica aos autores.
   conforme solicitação do usuário em 2026-10-15.
 - Consequências: documentação precisa acompanhar mudanças; código continua referência.
   Não foram alterados código, dados ou regras; não houve commit automático.
+
+
+## D-09 — Redesenho escuro mantendo o aplicativo desktop
+
+- Solicitação em 2026-10-15: interface dark, bonita e simples, inspirada em Shadow UI.
+- Referência visual adotada: [shadcn/ui](https://ui.shadcn.com/docs/theming), com
+  superfícies grafite, bordas discretas e hierarquia de ações; implementação nativa
+  em CustomTkinter/ttk, sem migrar para React ou adicionar dependências.
+- Paleta/componentes separados em `app/tema.py` e `app/componentes.py`.
+  Busca/filtro são visuais; resumo, exportação e cadastro usam a lista integral.
+- Confirmações em diálogo escuro com interrupção explícita; Queue/Thread/Event
+  e confirmação de salvamento permanecem no fluxo existente.
+
+## D-10 — Pontas separadas por largura
+
+- Regra confirmada pelo usuário: abaixo de 1000 é ponta e cada largura corresponde
+  a uma aba de classificação. Produto permanece na chave para não misturar papéis.
+- Helper `app/agrupamento.py` compartilhado entre interface e cadastro evita
+  divergência entre peso exibido e lote processado. Largura 1000 não é ponta.
+- Não lê item NF nem seleciona abas automaticamente; operador confere a aba/nota.
+
+## D-11 — Descrição original como contexto de agrupamento
+
+- Problema: produtos-base iguais podem representar descrições de classificação
+  distintas no documento de origem.
+- Escolha: preservar a descrição completa do ADF e, havendo variantes do mesmo
+  produto-base, agrupar por descrição antes do filtro de histórico e independente
+  da largura. Sem variantes, permanece o fallback de ponta por largura < 1000.
+- Evidência: [Bobina](../app/modelos.py), [parser ADF](../app/parsers.py),
+  [agrupamento](../app/agrupamento.py), testes sintéticos de parser/agrupamento.
+- Consequências: texto original não altera o produto-base nem o peso; grupos
+  remanescentes mantêm contexto após o filtro do histórico.
+
+## D-12 — Conferência de NF opcional com revisão humana
+
+- Problema: relacionar grupos do romaneio a itens impressos na nota sem misturar
+  linhas repetidas nem escolher ambiguidades automaticamente.
+- Escolha: leitura opcional DANFE ADF; sugerir somente correspondência única por
+  produto e peso exato, alertar divergência de largura e bloquear referência
+  incompatível. Operador confirma associação e continua selecionando no EGS.
+- Evidência: [nota_fiscal.py](../app/nota_fiscal.py), [interface.py](../app/interface.py),
+  testes sintéticos de NF/interface e [CONFERENCIA_NF](features/CONFERENCIA_NF.md).
+- Consequências: parser limitado ao layout textual DANFE ADF e unidade KG; a NF
+  não é persistida e a confirmação não comprova a classificação remota.
+
+## D-13 — Romaneio como metadado do histórico
+
+- Solicitação: guardar o número do romaneio para facilitar filtros.
+- Escolha: preservar `cadastradas` e a identidade fornecedor/bobina, acrescentando
+  mapa opcional `romaneios` por chave. Arquivos antigos seguem válidos sem inferir
+  a origem de registros; edição permite completar o campo.
+- A interface obtém o número do PDF quando reconhecido e permite correção manual.
+  Captura-o antes do worker, gravando somente após confirmação de salvamento.
+- Evidência: [historico.py](../app/historico.py), [interface.py](../app/interface.py),
+  [janela_historico.py](../app/janela_historico.py) e testes temporários/simulados.
+- Consequência: romaneio organiza a consulta; não autoriza recadastro da mesma
+  bobina. Corrigir o campo invalida as associações anteriores da NF.

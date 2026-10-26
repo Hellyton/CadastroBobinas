@@ -7,7 +7,7 @@ from app.navegador import Navegador, SalvamentoNaoConfirmado
 
 
 class TestSaldoClassificacao(unittest.TestCase):
-    def executar(self, saldos, erro=None):
+    def executar(self, saldos, erro=None, numero_romaneio=None):
         navegador = Mock()
         navegador.ler_saldo_classificar.side_effect = saldos
         if erro:
@@ -19,7 +19,7 @@ class TestSaldoClassificacao(unittest.TestCase):
                 patch("app.cadastro.marcar_cadastrada") as historico, \
                 patch("app.cadastro.logger"):
             resultado = CadastroBobinas().iniciar(
-                bobinas, solicitar=lambda *args: "")
+                bobinas, solicitar=lambda *args: "", numero_romaneio=numero_romaneio)
         return resultado, navegador, historico
 
     def test_saldo_inicial_zero_nao_tenta_cadastrar(self):
@@ -60,6 +60,14 @@ class TestSaldoClassificacao(unittest.TestCase):
         navegador.salvar.assert_called_once()
         historico.assert_not_called()
         navegador.fechar.assert_called_once()
+
+    def test_romaneio_so_e_gravado_no_historico_apos_salvamento_confirmado(self):
+        resultado, navegador, historico = self.executar([800, 800, 0], numero_romaneio="00077")
+        self.assertEqual(resultado["sucessos"], 1)
+        historico.assert_called_once_with("1", "ADF", romaneio="00077")
+        _, _, historico = self.executar(
+            [1600, 1600], SalvamentoNaoConfirmado("EGS rejeitou"), numero_romaneio="00077")
+        historico.assert_not_called()
 
     def test_formulario_fechado_sem_saldo_atualizado_nao_e_sucesso(self):
         navegador = Navegador()

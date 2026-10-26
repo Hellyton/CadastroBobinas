@@ -11,3 +11,4 @@ class Bobina:
     peso: int
     rua: int = 1
     fornecedor: str = ""
+    descricao_original: str = ""

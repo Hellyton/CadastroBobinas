@@ -31,16 +31,17 @@ Arquivo XLSX local. Não atualiza histórico e não há importação de volta.
 openpyxl; não requer controlar Microsoft Excel nem autenticação externa.
 
 ## Validações e exceções
-Sem bobinas ou com diálogo cancelado, retorna. Erro de escrita não tem
-tratamento próprio; código não configura formatação/estilo adicional.
+Sem bobinas ou com diálogo cancelado, retorna. OSError ao salvar exibe mensagem
+escura orientando conferir arquivo/pasta. Código não configura estilo da planilha.
 
 ## Interface do usuário
 Botão Exportar Excel habilitado após extração não vazia; diálogo de salvar e aviso
-de conclusão. Botão permanece disponível durante cadastro.
+de conclusão com tema escuro. Botão permanece disponível durante cadastro.
+Busca e filtro da tabela não restringem os registros exportados.
 
 ## Testes relacionados
-Não identificado teste direto de arquivo/conteúdo XLSX; exportação não foi
-executada nesta tarefa documental.
+`test_interface.py` simula Workbook e verifica exportação integral, números como
+texto e pesos numéricos mesmo com filtro ativo. Não valida arquivo XLSX real.
 
 ## Limitações conhecidas
 Fornecedor e ajuste não exportados, sem resumo por produto e sem classificação

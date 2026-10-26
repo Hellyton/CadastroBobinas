@@ -1,9 +1,26 @@
 # Planejamento e pendências
 
 Este arquivo distingue entregas observáveis de sugestões. Não foi identificado
-backlog formal, prazo, responsável ou priorização aprovada. Status em 2026-10-15.
+backlog formal, prazo, responsável ou priorização aprovada. Status em 2026-10-16.
 
 ## Concluídas
+
+- Confirmação do OK do aviso de peso em cada bobina, com espera de abertura e
+  fechamento; regressão em Chromium local e 76 testes aprovados em 2026-10-16.
+
+- Corrigida leitura de quantidade em NF ADF quando valores monetários saem
+  concatenados na extração do PDF; 72 testes aprovados em 2026-10-16.
+
+- Número do romaneio no histórico, com captura/editabilidade na interface,
+  coluna e filtro, preservação de registros antigos; 70 testes aprovados.
+
+- Preservação de descrição ADF e agrupamento por variantes, com fallback de
+  pontas por largura, conferência NF opcional e revisão de associações; 60 testes
+  aprovados e revisão/QA visual simulados concluídos. Sem homologação no EGS.
+
+- Redesenho dark, agrupamento por variantes/pontas, conferência NF opcional e
+  gestão local do histórico implementados em 2026-10-15; 60 testes aprovados e
+  inspeção visual simulada concluída.
 
 - No código: importação dos quatro fornecedores, conferência, XLSX, agrupamento
   por produto, automação EGS, histórico e controle de execução.

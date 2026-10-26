@@ -27,13 +27,14 @@ def extrair_bobinas_adf(caminho):
     padrao = re.compile(
         r"^(\d+)\s+"
         r"\d+\s+"
-        r"(\S+)\s+"
-        r".*?"
+        r"(.+?)\s+"
+        r"\S+\s+"  # Código do cliente; produto-base vem da descrição.
         r"(\d+)\s+"
         r"(\d+)\s+"
         r"(\d+)\s+"
         r"[\d\.]+\s+\S+\s+"  # Qtd ML seguido da unidade (KG, N/A, etc.)
         r"([\d\.]+)"
+        r"(?:\s+[\d\.]+)*\s*$"
     )
 
     for linha in texto.split("\n"):
@@ -47,7 +48,8 @@ def extrair_bobinas_adf(caminho):
 
         try:
             numero = resultado.group(1)
-            produto = resultado.group(2)
+            descricao_original = resultado.group(2).strip()
+            produto = descricao_original.split()[0]
             gramatura = int(resultado.group(3))
             formato = int(resultado.group(4))
             diametro = int(resultado.group(5))
@@ -56,7 +58,8 @@ def extrair_bobinas_adf(caminho):
             continue
 
         bobinas.append(
-            Bobina(numero, produto, gramatura, formato, diametro, peso)
+            Bobina(numero, produto, gramatura, formato, diametro, peso,
+                   descricao_original=descricao_original)
         )
 
     return bobinas, 0

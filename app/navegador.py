@@ -1,4 +1,4 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import config
 import math
 import re
@@ -273,21 +273,30 @@ class Navegador:
         )
 
     def _fechar_popup_peso(self):
-        """Fecha o popup de 'Peso não pode ser zero', se ele aparecer."""
+        """Fecha somente o aviso explícito de peso zero, se ele aparecer."""
+
+        aviso = self.page.get_by_text(
+            re.compile(r"^\s*Peso da bobina não pode ser zero!\s*$", re.I)
+        ).filter(visible=True).first
+        try:
+            aviso.wait_for(state="visible", timeout=3000)
+        except PlaywrightTimeoutError:
+            # O aviso é opcional; outras falhas do Playwright devem aparecer.
+            return False
 
         try:
-            # O seletor antigo aceitava qualquer aviso com esse layout.
-            # Fecha somente o aviso de peso zero, preservando erros do EGS.
-            popup = self.page.locator("div.modal.zindex:visible").filter(
-                has_text=re.compile(r"peso[\s\S]*zero", re.IGNORECASE))
-            botao = popup.locator(".modal-footer button").first
-            # Esse aviso é opcional: não aguarda três segundos quando
-            # ele não existe. O preenchimento já espera campos editáveis.
-            if botao.is_visible():
-                botao.click(timeout=1000)
-        except Exception:
-            # Popup não apareceu dessa vez, segue o jogo.
-            pass
+            popup = aviso.locator(
+                "xpath=ancestor-or-self::*[not(self::body or self::html) "
+                "and .//button[normalize-space(.)='OK']][1]")
+            botao_ok = popup.get_by_role("button", name="OK", exact=True)
+            botao_ok.click(timeout=3000)
+            popup.wait_for(state="hidden", timeout=3000)
+        except Exception as erro:
+            raise RuntimeError(
+                "O aviso de peso zero apareceu, mas não foi possível fechá-lo "
+                "pelo botão OK."
+            ) from erro
+        return True
 
     def salvar(self, peso=None, saldo_antes=None):
         """Só confirma sucesso com formulário fechado e saldo atualizado."""

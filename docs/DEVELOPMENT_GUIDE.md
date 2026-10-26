@@ -54,15 +54,20 @@ Execute com diretório de trabalho na raiz: histórico e logs têm caminhos rela
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-São 23 testes: 7 de controle, 8 de saldo e 8 de preenchimento. Em 2026-10-15,
-todos passaram usando o venv existente, navegador simulado e diretório temporário
-para não escrever logs operacionais; bytecode foi desabilitado com `-B`.
+São 76 testes: 7 de controle, 9 de saldo, 9 de preenchimento, 7 de agrupamento,
+13 de interface (Windows/Tkinter), 12 de conferência NF, 2 de parser ADF, 11 de
+histórico, 3 da janela de histórico e 3 de popup em Chromium local. A suíte passou em 2026-10-16 usando dados
+sintéticos/temporários; não executa cadastro real no EGS nem lê histórico operacional.
 A tentativa com Python global não importou Playwright, portanto não executou
 casos funcionais. Isso não é falha do código: use o interpretador do venv.
 
-A suíte não valida JavaScript no navegador real: `wait_for_function` é simulado.
-Não cobre diretamente parsers, JSON real, resumo, exportação ou seleção de várias
-notas. Não há CI, lint, typecheck, cobertura mínima ou pipeline identificados.
+Os testes do popup executam DOM e JavaScript em Chromium local, sem rede/EGS.
+Os predicados de cálculo e confirmação do saldo em `wait_for_function` continuam simulados.
+Os testes cobrem resumo/filtros, exportação simulada, variantes de descrição,
+agrupamento, fluxo opcional NF, parsing ADF sintético e CRUD do histórico em
+arquivo temporário, incluindo captura e filtro do número do romaneio. Não validam cadastro no EGS nem homologam documentos
+operacionais reais.
+Não há CI, lint, typecheck, cobertura mínima ou pipeline identificados.
 
 | Script manual | Efeito e cuidado |
 | --- | --- |

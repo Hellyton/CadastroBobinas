@@ -6,11 +6,12 @@ Testes unitários não equivalem a reprodução no EGS. IDs permanecem estáveis
 
 ## KI-01 — Historico nao transacional
 
-**Risco de integridade.** [historico.marcar_cadastrada](../app/historico.py) regrava
-o JSON diretamente, sem lock/replace atômico. EGS salva antes da escrita local;
-se esta falhar, [CadastroBobinas._executar](../app/cadastro.py) registra falha
-genérica, embora o cadastro remoto possa existir. Múltiplas instâncias podem
-perder atualizações. Conferir EGS e preservar backup antes de uma retomada.
+**Risco de integridade.** [historico.marcar_cadastrada](../app/historico.py) grava
+em arquivo temporário e usa `os.replace`, reduzindo risco de arquivo truncado por
+interrupção durante a escrita. Não há lock/transação: instâncias concorrentes
+ainda podem perder atualizações. EGS salva antes da escrita local; se esta falhar,
+[CadastroBobinas._executar](../app/cadastro.py) pode registrar falha genérica embora
+o cadastro remoto exista. Conferir EGS e preservar backup antes de uma retomada.
 
 ## KI-02 — Historico ausente, ilegivel ou legado
 
@@ -72,12 +73,13 @@ sem requisito fechado. Fontes: [cadastro.py](../app/cadastro.py): `_confirmar`;
 
 ## KI-09 — Cobertura de testes e simulador
 
-**Débito de validação.** Os 23 testes cobrem controle, saldo e preenchimento com
-Mock. Não executam o JavaScript da confirmação no navegador nem cobrem parsers,
-JSON real, planilha, resumo ou múltiplas notas. HTML local não representa backend,
+**Débito de validação.** A suíte tem 76 testes, incluindo gestão do histórico em
+arquivos temporários e DOM/JavaScript do popup de peso em Chromium local. A
+confirmação de saldo continua simulada; não cobre planilha real, múltiplas
+notas ou todas as combinações de schema. HTML local não representa backend,
 permissões, falhas de rede ou toda a dinâmica do EGS; aceita login livre e saldo
 fica só em memória. Fontes: [tests](../tests), [mock](../mock/mock_sistema.html).
-Não houve homologação no EGS nesta tarefa.
+Não houve homologação no EGS.
 
 ## KI-10 — Ambiente e diagnostico
 
@@ -92,17 +94,21 @@ limita retenção total e erros podem registrar dados de bobinas. Fontes:
 ## KI-11 — Leitura e exportacao na interface
 
 **Limitação/risco de usabilidade.** [App.processar_pdf](../app/interface.py) faz
-extração síncrona e sem tratamento abrangente de erro; PDF grande pode bloquear
-janela e falha pode deixar estado visual anterior. `exportar_excel` não trata
-erro de escrita. Tabela é de conferência, sem edição ou filtro parcial de cadastro.
-Dataclass não valida dimensões/produto nem formatos além dos parsers e do saldo.
+extração síncrona; PDF grande pode bloquear a janela. A tabela do romaneio é de
+conferência, sem edição ou filtro parcial do cadastro. O histórico tem janela
+separada para busca e manutenção das chaves locais; isso não edita o EGS. A
+exportação trata falha de escrita, mas a dataclass não valida dimensões/produto
+nem formatos além dos parsers e do saldo.
 
 ## KI-12 — Schema JSON nao validado
 
-**Risco de erro local.** [historico.carregar_historico](../app/historico.py)
-captura JSONDecodeError/OSError, mas pressupõe objeto com `cadastradas` iterável
-e elementos hashable. JSON válido com tipo inesperado pode causar AttributeError
-ou TypeError; string pode virar set de caracteres. Não há teste de schema.
+**Risco residual de prevenção.** O leitor estrito em
+[historico.py](../app/historico.py) valida raiz objeto, `cadastradas` como lista e
+chaves como strings não vazias. JSON malformado ou schema inesperado continua
+fazendo `carregar_historico` retornar set vazio por compatibilidade, o que pode
+deixar de prevenir recadastro; marcação e gestão manual falham sem sobrescrever o
+arquivo inválido. Testes com JSON sintaticamente válido e schema inválido cobrem
+string, nulo, elemento não textual e raiz lista, preservando o original.
 
-Prioridades, critérios de aceite e aprovação para resolver esses pontos:
-[ROADMAP](ROADMAP.md). Nenhum código de produção foi corrigido nesta tarefa.
+Prioridades, critérios de aceite e aprovação para resolver os riscos residuais:
+[ROADMAP](ROADMAP.md). Gestão local não confirma situação no EGS.

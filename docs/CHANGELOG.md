@@ -4,6 +4,62 @@ Não há versão semântica/tag identificada. Datas de commits abaixo vêm do Gi
 não indicam data de implantação no EGS. Mudanças locais não recebem data de
 implementação inferida. Motivos e trade-offs: [DECISIONS](DECISIONS.md).
 
+## 2026-10-16 — Confirmação do aviso de peso em cada classificação
+
+- Aviso de peso zero tem espera de aparição, clique no OK do próprio popup e
+  confirmação de fechamento; falhas identificadas deixam de ser ignoradas.
+- Mensagem visível substitui dependência exclusiva de classes do modal e evita
+  conflito com cópias ocultas. Demais avisos não recebem confirmação automática.
+- Testes Chromium locais verificam atraso, isolamento e duas bobinas seguidas,
+  além dos testes de campos/saldo/histórico: 76 aprovados; sem execução no EGS.
+
+## 2026-10-16 — Correção de NF com valores monetários concatenados
+
+- Leitura da quantidade deixou de depender de separadores entre preço e total,
+  evitando rejeição indevida de uma linha válida do DANFE ADF.
+- Quantidades malformadas continuam recusadas sem importação parcial. Dois casos
+  sintéticos acrescentados; 72 testes aprovados e PDFs fornecidos conferidos
+  somente para leitura, sem ações no EGS nem uso do histórico operacional.
+
+## 2026-10-15 — Número do romaneio no histórico
+
+- Campo de romaneio extraído do PDF e editável antes do cadastro; a interface
+  exige preenchimento e envia o valor para a marca de cada sucesso confirmado.
+- Histórico com coluna, busca, filtro por romaneio e edição/inclusão do número.
+  Registros antigos continuam legíveis sem romaneio; a deduplicação não muda.
+- Mapa opcional `romaneios` preservado nas gravações atômicas. Suíte com 70 testes
+  aprovada, sem acesso ao histórico operacional nem cadastro real no EGS.
+
+## 2026-10-15 — Gestão local do histórico
+
+- Adicionada janela para consultar/buscar, incluir manualmente, editar e excluir
+  chaves locais, com confirmação sobre o efeito na prevenção de recadastro.
+- Inclusão manual só grava no controle local; não interage com o EGS. JSON inválido
+  deixa de ser sobrescrito por gravações, que agora usam substituição atômica.
+- Cinco testes com arquivos temporários aprovados; sem uso do histórico operacional.
+
+## 2026-10-15 — Variantes ADF e conferência opcional de NF
+
+- Preservada a descrição completa ADF; variantes do mesmo produto-base formam
+  grupos por descrição. Sem variantes, mantém-se agrupamento de pontas por largura.
+- Adicionada importação opcional DANFE ADF com sugestões revisáveis por item,
+  alertas de largura/referência e integração de rótulos na interface/cadastro.
+  A escolha da aba/item permanece manual no EGS e a NF não é persistida.
+- Histórico local ganhou manutenção manual; total de 60 testes passou com
+  navegador simulado e dados sintéticos/temporários. QA visual concluído; sem
+  homologação EGS, acesso a dados operacionais ou commit automático.
+
+## 2026-10-15 — Interface dark e pontas por largura
+
+- Redesenhada a interface nativa com paleta grafite, indicadores, cartões de peso,
+  tabela escura, busca/filtro e diálogos temáticos, inspirada no shadcn/ui.
+- Pontas abaixo de 1000 separadas por produto e largura no resumo e no cadastro;
+  demais larguras preservam agrupamento por produto. Escolha de aba/nota é manual.
+- Falha de leitura invalida lote antigo; exportação continua integral com filtros.
+- 33 testes simulados aprovados e PDF fornecido conferido sem cadastro real.
+  Inspeção visual concluída após desbloqueio, com ajuste de espaçamento para
+  telas baixas. Sem commit automático.
+
 ## 2026-10-15 — Resumo por produto, preenchimento verificado e documentação
 
 - Versionadas as alterações preexistentes de resumo de quantidade/peso por produto
