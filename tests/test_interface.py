@@ -112,7 +112,9 @@ class TestInterface(unittest.TestCase):
         with patch("app.interface.Thread") as thread:
             self.app.iniciar_cadastro()
         argumentos = thread.call_args.kwargs["args"]
-        self.assertEqual(argumentos[-1], "00077")
+        self.assertEqual(argumentos[4], "00077")
+        self.assertIsNone(argumentos[5])
+        self.assertFalse(argumentos[6].is_set())
         self.assertEqual(self.app.campo_romaneio.cget("state"), "disabled")
         with patch("app.interface.CadastroBobinas") as cadastro:
             self.app.executar_cadastro(*argumentos)
@@ -217,6 +219,61 @@ class TestInterface(unittest.TestCase):
         linhas = self.app.tabela.get_children()
         self.assertEqual(len(linhas), 1)
         self.assertEqual(self.app.tabela.item(linhas[0], "values")[1], "MIOLO PF P2A")
+
+    def test_novo_cadastro_fecha_navegador_mantido_pelo_anterior(self):
+        anterior = self.app._encerrar_navegador
+        with patch("app.interface.Thread") as thread:
+            self.app.iniciar_cadastro()
+        self.assertTrue(anterior.is_set())
+        novo = thread.call_args.kwargs["args"][6]
+        self.assertIs(novo, self.app._encerrar_navegador)
+        self.assertFalse(novo.is_set())
+
+    def bobinas_com_variantes_que_colidem(self):
+        return [
+            Bobina("V-1", "MIOLO", 90, 1830, 1200, 1000, descricao_original="MIOLO"),
+            Bobina("V-2", "MIOLO", 90, 1030, 1200, 800, descricao_original="MIOLO // MIOLO"),
+            Bobina("V-3", "RECICLADO", 90, 1200, 1200, 900, descricao_original="RECICLADO"),
+            Bobina("V-4", "RECICLADO", 90, 1100, 1200, 700,
+                   descricao_original="RECICLADO // RECICLADO"),
+        ]
+
+    def test_variantes_que_encurtam_igual_mantem_rotulos_distintos_no_cadastro(self):
+        self.app.bobinas = self.bobinas_com_variantes_que_colidem()
+        self.app._atualizar_romaneio()
+        rotulos = self.app._rotulos_cadastro()
+        self.assertEqual(rotulos, {
+            "MIOLO": "MIOLO", "MIOLO // MIOLO": "MIOLO // MIOLO",
+            "RECICLADO": "RECICLADO", "RECICLADO // RECICLADO": "RECICLADO // RECICLADO",
+        })
+        self.app.filtro_produto.set("MIOLO // MIOLO")
+        self.app.filtrar_bobinas()
+        linhas = self.app.tabela.get_children()
+        self.assertEqual([self.app.tabela.item(l, "values")[0] for l in linhas], ["V-2"])
+
+    def test_nf_com_item_unico_envia_lote_inteiro_em_uma_etapa(self):
+        self.app.bobinas = self.bobinas_com_variantes_que_colidem()
+        self.app._atualizar_romaneio()
+        nota = NotaFiscal("000.001.525", None, [
+            ItemNotaFiscal("1", "143", "MIOLO", "MIOLO", None, Decimal("3400.0000"))])
+        with patch("app.interface.filedialog.askopenfilename", return_value="nf_simulada.pdf"), \
+                patch("app.interface.ler_nota_fiscal", return_value=nota), \
+                patch("app.interface.Dialogo") as dialogo:
+            self.app.abrir_nf()
+            dialogo.return_value.botao_confirmar.configure.assert_not_called()
+            self.assertIn("única etapa", dialogo.call_args.args[2])
+            dialogo.call_args.kwargs["confirmar"]("")
+        self.assertEqual(len(self.app._associacoes_nf), 4)
+        with patch("app.interface.Thread") as thread:
+            self.app.iniciar_cadastro()
+        argumentos = thread.call_args.kwargs["args"]
+        self.assertEqual(argumentos[5], "NF 1525 · item 1 · MIOLO")
+        with patch("app.interface.CadastroBobinas") as cadastro:
+            self.app.executar_cadastro(*argumentos)
+        self.assertEqual(cadastro.return_value.iniciar.call_args.kwargs["grupo_unico"],
+                         "NF 1525 · item 1 · MIOLO")
+        self.app._atualizar_romaneio()
+        self.assertIsNone(self.app._grupo_unico_nf())
 
 
 if __name__ == "__main__":

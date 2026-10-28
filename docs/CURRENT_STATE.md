@@ -1,5 +1,40 @@
 # Estado atual para retomada
 
+## Atualização — saída do EGS ao final, 2026-10-28
+
+- `Navegador.sair_do_sistema` usa `SEL_SAIR_CLASSIFICACAO`, `SEL_BOTAO_DESLIGAR`
+  (ícone `fa-power-off` em `#h-icons`) e `SEL_CONFIRMAR_SAIR` (`#btnSimConfirm`),
+  e só retorna True quando o campo de usuário do login reaparece.
+- Chamado apenas no término normal de `_executar`. Verificação: 92 testes; fluxo
+  simulado em Chromium local. Próximo passo: confirmar os seletores no EGS real.
+  O simulador `mock/mock_sistema.html` não tem esses botões; nele a saída falha e
+  apenas registra aviso.
+
+## Atualização — navegador aberto ao final, 2026-10-28
+
+- `CadastroBobinas.iniciar(manter_navegador=True)` deixa o fechamento para a
+  interface, que chama `Navegador.aguardar_fechamento` e depois `fechar` na thread
+  do cadastro. Sinal `_encerrar_navegador`: novo cadastro, `fechar_janela`, `destroy`.
+- Verificação: 89 testes aprovados; Chromium headless local fecha por página
+  fechada e por sinal. Próximo passo: confirmar no uso real com o EGS.
+
+## Atualização — NF de item único, 2026-10-28
+
+- `conferir_nota` trata NF de item único com peso total igual ao romaneio como
+  divisão do cadastro (`item_unico`); a interface envia `grupo_unico` ao cadastro.
+- `_rotulos_curtos` evita rótulos duplicados entre `X` e `X // X`.
+- Verificação: 84 testes aprovados; NF 1525 + romaneio 3875 associam os 4 grupos.
+  Próximo passo: reabrir o aplicativo, importar romaneio e NF e cadastrar no EGS
+  selecionando a nota única.
+
+## Atualização — romaneio Novakraft V26654, 2026-10-28
+
+- Corrigida a leitura de pesos pt-BR no romaneio Novakraft, que antes tentava
+  converter `1.583,00` como `1.583.00` e encerrava a importação com `ValueError`.
+- Linhas pendentes com `/ /` no lugar de data e turno agora são aceitas.
+- Validação local: 20 bobinas, 29.861 kg e 76 testes aprovados. Reabrir o
+  aplicativo e importar o arquivo novamente; não houve cadastro no EGS.
+
 ## Atualização — confirmação do aviso de peso, 2026-10-16
 
 - Corrigida a verificação instantânea do popup que podia perder sua abertura.

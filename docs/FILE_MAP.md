@@ -25,7 +25,7 @@ ao arquivo e pesquise o símbolo; números de linha não são mantidos como cont
 | [app/parsers.py](../app/parsers.py) | `_interpretar_codigo_produto`, `_desduplicar_codigo`, `PADRAO_PRODUTO_NOVAKRAFT`, `MAPA_PRODUTO_NOVAKRAFT` | código nominal Novakraft |
 | [app/parsers.py](../app/parsers.py) | `extrair_bobinas_cocelpa`, `_agrupar_palavras_por_linha`, `_processar_coluna_cocelpa`, `_tentar_valor_ajuste`, `PADRAO_FABRICACAO` | colunas, grupos KE e ajustes; coordenadas de palavras |
 | [app/cadastro.py](../app/cadastro.py) | `CadastroBobinas.iniciar`, `_executar`, `_confirmar`, `_escolher_proximo_produto`, `_parar_por_saldo`, `_resultado` | orquestração; navegador, histórico, controle, config |
-| [app/navegador.py](../app/navegador.py) | `Navegador.abrir`, `acessar`, `fazer_login`, `fechar` | Chromium e login; Playwright síncrono, config |
+| [app/navegador.py](../app/navegador.py) | `Navegador.abrir`, `acessar`, `fazer_login`, `sair_do_sistema`, `aguardar_fechamento`, `fechar` | Chromium e login; Playwright síncrono, config |
 | [app/navegador.py](../app/navegador.py) | `clicar_novo`, `preencher_bobina`, `_preencher_campos`, `_fill_verificado`, `_campos_divergentes` | campos EGS; constantes `SEL_*` |
 | [app/navegador.py](../app/navegador.py) | `_aguardar_campos_calculados`, `_esperar_calculo`, `_fechar_popup_peso` | recálculo, avisos e esperas |
 | [app/navegador.py](../app/navegador.py) | `ler_saldo_classificar`, `ler_quantidade_classificada`, `_parse_numero`, `salvar`, `tentar_fechar_modal`, `SalvamentoNaoConfirmado` | leitura, confirmação e recuperação |

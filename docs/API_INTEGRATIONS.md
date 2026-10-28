@@ -21,7 +21,8 @@ API identificados. A integração EGS usa sua interface web e seletores CSS.
   não retornam objeto remoto nem identificador de cadastro.
 - **Erros:** login/navegação propagam exceções; leitura de saldo converte exceções
   em None; confirmação incerta interrompe lote; outras falhas são contabilizadas
-  e disparam tentativa de fechar modal. Fechamento do navegador ocorre no finally.
+  e disparam tentativa de fechar modal. Pela interface, o navegador fica aberto ao
+  final e fecha quando o operador o fecha, outro cadastro começa ou o app fecha.
 - **Limitações:** dependência do DOM, posições `nth-child`, formatação pt-BR,
   seleção humana e disponibilidade/rede. Sessão compartilhada com outras instâncias,
   limites oficiais, MFA e permissões por perfil: **Não identificado**.

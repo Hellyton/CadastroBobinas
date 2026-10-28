@@ -1,4 +1,5 @@
 import unittest
+from threading import Event
 from unittest.mock import Mock, patch
 
 from app.cadastro import CadastroBobinas
@@ -60,6 +61,7 @@ class TestSaldoClassificacao(unittest.TestCase):
         navegador.salvar.assert_called_once()
         historico.assert_not_called()
         navegador.fechar.assert_called_once()
+        navegador.sair_do_sistema.assert_not_called()
 
     def test_romaneio_so_e_gravado_no_historico_apos_salvamento_confirmado(self):
         resultado, navegador, historico = self.executar([800, 800, 0], numero_romaneio="00077")
@@ -82,6 +84,37 @@ class TestSaldoClassificacao(unittest.TestCase):
         navegador.salvar(peso=800, saldo_antes=800)
         dados = navegador.page.wait_for_function.call_args.kwargs["arg"]
         self.assertEqual(dados["esperado"], 0)
+
+    def test_manter_navegador_deixa_fechamento_para_quem_chamou(self):
+        navegador = Mock()
+        navegador.ler_saldo_classificar.side_effect = [800, 800, 0]
+        cadastro = CadastroBobinas()
+        with patch("app.cadastro.Navegador", return_value=navegador), \
+                patch("app.cadastro.logger"):
+            cadastro.iniciar([Bobina("1", "MIOLO", 90, 1130, 1200, 800)],
+                             usar_historico=False, solicitar=lambda *args: "",
+                             manter_navegador=True)
+        navegador.fechar.assert_not_called()
+        self.assertIs(cadastro.navegador, navegador)
+        navegador.sair_do_sistema.assert_called_once()
+
+    def test_aguardar_fechamento_espera_ate_operador_fechar_a_pagina(self):
+        navegador = Navegador()
+        pagina = Mock()
+        contexto = Mock(pages=[pagina])
+        navegador.browser = Mock(contexts=[contexto])
+        navegador.browser.is_connected.return_value = True
+        pagina.wait_for_timeout.side_effect = lambda _ms: setattr(contexto, "pages", [])
+        navegador.aguardar_fechamento(Event())
+        pagina.wait_for_timeout.assert_called_once_with(500)
+
+    def test_aguardar_fechamento_retorna_quando_sinalizado(self):
+        navegador = Navegador()
+        navegador.browser = Mock()
+        encerrar = Event()
+        encerrar.set()
+        navegador.aguardar_fechamento(encerrar)
+        Navegador().aguardar_fechamento(Event())
 
     def test_salvar_com_saldo_zero_nao_clica(self):
         navegador = Navegador()

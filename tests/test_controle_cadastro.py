@@ -60,6 +60,7 @@ class TestControleCadastro(unittest.TestCase):
         navegador.salvar.assert_called_once()
         navegador.clicar_novo.assert_called_once()
         navegador.fechar.assert_called_once()
+        navegador.sair_do_sistema.assert_not_called()
 
     def test_falha_no_login_fecha_navegador(self):
         navegador = Mock()
@@ -142,6 +143,42 @@ class TestControleCadastro(unittest.TestCase):
                 navegador.fechar.assert_called_once()
             finally:
                 controle.interromper()
+                thread.join(2)
+
+    def test_janela_mantem_navegador_aberto_ate_ser_sinalizada(self):
+        from queue import Queue
+        from types import SimpleNamespace
+        from app.interface import App
+
+        janela = SimpleNamespace(_eventos=Queue())
+        navegador = Mock()
+        navegador.ler_saldo_classificar.side_effect = [800, 800, 0]
+        navegador.aguardar_fechamento.side_effect = lambda encerrar: encerrar.wait(5)
+        encerrar = Event()
+        bobinas = [Bobina("1", "MIOLO", 90, 1130, 1200, 800)]
+        with patch("app.cadastro.Navegador", return_value=navegador), \
+                patch("app.cadastro.carregar_historico", return_value=set()), \
+                patch("app.cadastro.marcar_cadastrada"):
+            thread = Thread(target=App.executar_cadastro,
+                            args=(janela, bobinas, 0, ControleCadastro(),
+                                  None, None, None, encerrar))
+            thread.start()
+            try:
+                while True:
+                    tipo, dados = janela._eventos.get(timeout=2)
+                    if tipo == "confirmacao":
+                        dados["pedido"]["pronto"].set()
+                    elif tipo == "finalizado":
+                        break
+                self.assertEqual(dados["resultado"]["sucessos"], 1)
+                self.assertTrue(thread.is_alive())
+                navegador.fechar.assert_not_called()
+                encerrar.set()
+                thread.join(2)
+                self.assertFalse(thread.is_alive())
+                navegador.fechar.assert_called_once()
+            finally:
+                encerrar.set()
                 thread.join(2)
 
 

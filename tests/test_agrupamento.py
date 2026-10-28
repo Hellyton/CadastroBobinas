@@ -128,6 +128,34 @@ class TestAgrupamentoBobinas(unittest.TestCase):
         self.assertEqual(resultado["sucessos"], 4)
         self.assertEqual(resultado["falhas"], 0)
 
+    def test_grupo_unico_da_nf_cadastra_lote_inteiro_sem_troca_de_produto(self):
+        bobinas = [bobina(1, "MIOLO", 1830), bobina(2, "MIOLO", 1030),
+                   bobina(3, "RECICLADO", 1200)]
+        bobinas[0].descricao_original = "MIOLO"
+        bobinas[1].descricao_original = "MIOLO // MIOLO"
+        navegador = Mock()
+        navegador.ler_saldo_classificar.side_effect = [5000, 5000, 4500, 4000, 3500]
+        chamadas_solicitar = []
+
+        def solicitar(mensagem, opcoes=None):
+            chamadas_solicitar.append((mensagem, opcoes))
+            return ""
+
+        with patch("app.cadastro.logger"), \
+                patch("app.cadastro.Navegador", return_value=navegador), \
+                patch("builtins.input", return_value=""):
+            resultado = CadastroBobinas().iniciar(
+                bobinas, usar_historico=False, solicitar=solicitar,
+                rotulos_grupos={"MIOLO": "MIOLO", "MIOLO // MIOLO": "MIOLO"},
+                grupo_unico="NF 1525 · item 1 · MIOLO")
+
+        self.assertFalse(any(opcoes for _mensagem, opcoes in chamadas_solicitar))
+        self.assertFalse(any(mensagem.startswith("\nPróximo produto:")
+                             for mensagem, _opcoes in chamadas_solicitar))
+        self.assertEqual(navegador.preencher_bobina.call_args_list,
+                         [unittest.mock.call(b) for b in bobinas])
+        self.assertEqual(resultado["sucessos"], 3)
+
     def test_rotulo_nf_e_contexto_de_variantes_sobrevivem_ao_filtro_historico(self):
         primeira = bobina(1, "MIOLO", 520)
         primeira.descricao_original = "MIOLO // MIOLO"

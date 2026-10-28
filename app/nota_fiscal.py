@@ -33,6 +33,7 @@ class ConferenciaNota:
     pendencias: list[str] = field(default_factory=list)
     alertas: list[str] = field(default_factory=list)
     referencia_compativel: bool = True
+    item_unico: bool = False
 
 
 def _extrair_texto(caminho):
@@ -175,7 +176,7 @@ def ler_nota_fiscal(caminho):
 
 
 def ler_numero_romaneio(caminho):
-    """Lê a referência numérica impressa em um romaneio ou na informação da NF."""
+    """Lê a referência impressa em um romaneio ou na informação da NF."""
     texto = _normalizar(_extrair_texto(caminho))
     padroes = (
         r"\bnumero\s*:\s*(\d+)\b",
@@ -185,6 +186,13 @@ def ler_numero_romaneio(caminho):
         match = re.search(padrao, texto, re.I)
         if match:
             return match.group(1)
+
+    # O relatório Novakraft não imprime um número próprio de romaneio. Para
+    # esse layout, a referência operacional é o pedido do cliente (V26654/01).
+    if "RELACAO DE ESTOQUE/PEDIDO DE VENDA" in texto.upper():
+        match = re.search(r"\bpedido\s*:\s*([A-Z]+\d+(?:/\d+)?)\b", texto, re.I)
+        if match:
+            return match.group(1).upper()
     return None
 
 
@@ -192,8 +200,37 @@ def _digitos_referencia(valor):
     return re.sub(r"\D", "", str(valor or ""))
 
 
+def _associar_item_unico(resultado, grupos, item):
+    """NF de item único define a divisão: todos os grupos vão para o item."""
+    resultado.item_unico = True
+    produtos = set()
+    for nome, bobinas_grupo in grupos.items():
+        resultado.associacoes[nome] = item
+        produtos.update(_normalizar_produto(b.produto) for b in bobinas_grupo)
+        larguras = {b.formato for b in bobinas_grupo}
+        if item.largura is not None and larguras != {item.largura}:
+            resultado.alertas.append(
+                f"Grupo {nome!r} foi associado ao item NF "
+                f"{item.numero} pelo peso, mas as larguras diferem "
+                f"(romaneio: {sorted(larguras)}; NF: {item.largura} mm). "
+                "Revise antes de usar a associação."
+            )
+    divergentes = sorted(produtos - {item.produto})
+    if divergentes:
+        resultado.alertas.append(
+            f"NF com item único ({item.produto}), mas o romaneio também tem "
+            f"{', '.join(divergentes)}; todas as bobinas seguem o item NF "
+            f"{item.numero}. Confira antes de classificar."
+        )
+    return resultado
+
+
 def conferir_nota(nota, bobinas, numero_romaneio=None):
-    """Sugere associações one-to-one somente por produto e peso exatos."""
+    """Sugere associações one-to-one somente por produto e peso exatos.
+
+    Com um único item na NF e peso total igual ao do romaneio, a NF define a
+    divisão e todos os grupos são associados a esse item.
+    """
     resultado = ConferenciaNota()
     grupos = agrupar_bobinas(bobinas)
 
@@ -217,6 +254,10 @@ def conferir_nota(nota, bobinas, numero_romaneio=None):
             "Não foi possível validar a referência NF/romaneio; "
             "as associações permanecem sugestões para revisão."
         )
+
+    if (len(nota.itens) == 1 and grupos
+            and Decimal(sum(b.peso for b in bobinas)) == nota.itens[0].peso):
+        return _associar_item_unico(resultado, grupos, nota.itens[0])
 
     resumo_grupos = []
     for nome, bobinas_grupo in grupos.items():

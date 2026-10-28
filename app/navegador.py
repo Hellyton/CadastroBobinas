@@ -34,6 +34,11 @@ SEL_BOTAO_SAIR = (
     "body > div:nth-child(1) > div > div > div.modal-footer.ng-scope "
     "> div > div.col-xs-6.btn-after > egs-button-close-popup > button"
 )
+SEL_SAIR_CLASSIFICACAO = (
+    "body > div.modal.in div.modal-footer egs-button-close-popup > button"
+)
+SEL_BOTAO_DESLIGAR = "#h-icons > button:has(.fa-power-off)"
+SEL_CONFIRMAR_SAIR = "#btnSimConfirm"
 
 
 class SalvamentoNaoConfirmado(RuntimeError):
@@ -376,6 +381,40 @@ class Navegador:
                 continue
 
         return False
+
+    def sair_do_sistema(self):
+        """Fecha a Classificação de Bobinas e encerra a sessão no EGS.
+
+        Retorna True somente quando a tela de login reaparece; falhas são
+        registradas e não interrompem o encerramento do cadastro.
+        """
+
+        try:
+            sair = self.page.locator(SEL_SAIR_CLASSIFICACAO).filter(has_text="Sair")
+            if sair.count():
+                sair.last.click(timeout=3000)
+                sair.last.wait_for(state="hidden", timeout=5000)
+            self.page.click(SEL_BOTAO_DESLIGAR, timeout=5000)
+            self.page.click(SEL_CONFIRMAR_SAIR, timeout=5000)
+            self.page.wait_for_selector(SEL_USUARIO, timeout=10000)
+            return True
+        except Exception as erro:
+            logger.warning(f"Não foi possível sair do EGS automaticamente: {erro}")
+            return False
+
+    def aguardar_fechamento(self, encerrar):
+        """Mantém o Chromium aberto até o operador fechá-lo ou `encerrar` ser sinalizado."""
+
+        while (self.browser is not None and self.browser.is_connected()
+               and not encerrar.is_set()):
+            paginas = [p for contexto in self.browser.contexts for p in contexto.pages]
+            if not paginas:
+                return
+            try:
+                # Espera pelo Playwright para continuar processando os eventos do navegador.
+                paginas[0].wait_for_timeout(500)
+            except Exception:
+                return
 
     def fechar(self):
 

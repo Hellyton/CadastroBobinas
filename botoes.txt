@@ -54,3 +54,16 @@ body > div:nth-child(1) > div > div > div.modal-footer.ng-scope > div > div:nth-
 
 botão sair
 body > div:nth-child(1) > div > div > div.modal-footer.ng-scope > div > div.col-xs-6.btn-after > egs-button-close-popup > button
+
+fluxo de sair do sistema
+botão sair da classificação
+body > div.modal.ng-scope.ng-isolate-scope.in > div > div > div.modal-footer.ng-scope > div > div > egs-button-close-popup > button
+<button type="button" class="btn-footer-modal pull-left ng-binding" ng-click="click" ng-disabled="disabled">Sair</button>
+
+sair do sistema
+#h-icons > button:nth-child(7) > div > span
+<span class="icon far fa-power-off"></span>
+
+sair
+#btnSimConfirm
+<button type="button" id="btnSimConfirm" class="btn-footer-modal pull-right" ng-click="sim()" ng-keydown="buttonPressEvent($event);">Sim</button>

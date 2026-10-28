@@ -158,8 +158,9 @@ TOKEN_NOVAKRAFT = re.compile(
     r"(?P<quant>\d+)\s+"
     r"(?P<quebras>\d+)\s+"
     r"(?:SIM|N[ÃA]O)\s+"
-    r"\d{2}/\d{2}/\d{4}\s+"
-    r"\S+"
+    # Quando a produção ainda não recebeu data/turno, o relatório usa
+    # "/ /". A bobina continua sendo parte do romaneio e deve ser lida.
+    r"(?:\d{2}/\d{2}/\d{4}\s+\S+|/\s+/)"
 )
 
 
@@ -268,7 +269,11 @@ def _extrair_bobinas_novakraft_romaneio(texto):
 
         numero = resultado.group("lote")
 
-        peso = int(round(float(resultado.group("peso").replace(",", "."))))
+        # O relatório usa número pt-BR (ex.: 1.583,00). Remover primeiro
+        # os milhares evita formar um número inválido como "1.583.00".
+        peso = int(round(float(
+            resultado.group("peso").replace(".", "").replace(",", ".")
+        )))
 
         bobinas.append(
 

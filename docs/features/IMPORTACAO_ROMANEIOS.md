@@ -43,8 +43,10 @@ cadastro/exportação, evitando usar registros antigos com o novo arquivo seleci
 
 ## Interface do usuário
 Selecionar/Trocar romaneio no cabeçalho; arquivo e fornecedor em painel próprio.
-O campo Nº do romaneio é extraído quando reconhecido pelo leitor de referência
-e pode ser preenchido/corrigido manualmente; é exigido antes do cadastro na interface.
+O campo Nº do romaneio é extraído quando reconhecido pelo leitor de referência.
+No layout Novakraft `Relacao de Estoque/Pedido de Venda`, usa o pedido do cliente
+(por exemplo, `V26654/01`) porque não há número próprio de romaneio. O valor pode
+ser corrigido manualmente e é exigido antes do cadastro na interface.
 Interface escura com indicadores, tabela, busca, filtro e resumo por grupo.
 Ctrl+O abre o seletor. Interface é de conferência, sem edição de registros.
 

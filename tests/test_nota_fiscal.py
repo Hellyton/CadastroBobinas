@@ -114,6 +114,19 @@ Inf. Contribuinte: Romaneio Faturado n° 3617
         with patch("app.nota_fiscal._extrair_texto", return_value="Número: 3617"):
             self.assertEqual(ler_numero_romaneio("rom-sintetico.pdf"), "3617")
 
+    def test_le_pedido_do_cliente_no_romaneio_novakraft(self):
+        texto = "\n".join([
+            "SIGA /ESTR01/v.12 Relacao de Estoque/Pedido de Venda",
+            "Cliente: ADF - EMPRESAS REUNIDAS LTDA - ME",
+            "Pedido: V26654/01 Quant. Ped. : 32.028,20 ( 20 Reels)",
+        ])
+        with patch("app.nota_fiscal._extrair_texto", return_value=texto):
+            self.assertEqual(ler_numero_romaneio("rom-novakraft.pdf"), "V26654/01")
+
+    def test_pedido_fora_do_layout_novakraft_nao_vira_romaneio(self):
+        with patch("app.nota_fiscal._extrair_texto", return_value="Pedido: V26654/01"):
+            self.assertIsNone(ler_numero_romaneio("rom-sintetico.pdf"))
+
 
 class TestConferenciaNota(unittest.TestCase):
     @staticmethod
@@ -162,6 +175,47 @@ class TestConferenciaNota(unittest.TestCase):
         self.assertEqual(resultado.associacoes, {})
         self.assertTrue(any("não única" in pendencia
                             for pendencia in resultado.pendencias))
+
+    def test_item_unico_com_peso_total_associa_todos_os_grupos(self):
+        bobinas = [
+            self.bobina(1, "MIOLO", 600, 1830, "MIOLO"),
+            self.bobina(2, "MIOLO", 400, 1030, "MIOLO // MIOLO"),
+            self.bobina(3, "RECICLADO", 500, 1200, "RECICLADO"),
+        ]
+        nota = NotaFiscal("NF1", None, [self.item(1, "MIOLO", "1500.0000")])
+
+        resultado = conferir_nota(nota, bobinas, "3875")
+
+        self.assertTrue(resultado.item_unico)
+        self.assertEqual(set(resultado.associacoes),
+                         {"MIOLO", "MIOLO // MIOLO", "RECICLADO"})
+        self.assertTrue(all(item is nota.itens[0]
+                            for item in resultado.associacoes.values()))
+        self.assertEqual(resultado.pendencias, [])
+        self.assertTrue(any("RECICLADO" in alerta and "item único" in alerta
+                            for alerta in resultado.alertas))
+
+    def test_item_unico_com_peso_total_diferente_nao_associa(self):
+        bobinas = [
+            self.bobina(1, "MIOLO", 600, 1830, "MIOLO"),
+            self.bobina(2, "MIOLO", 400, 1030, "MIOLO // MIOLO"),
+        ]
+        nota = NotaFiscal("NF1", "3875", [self.item(1, "MIOLO", "999")])
+
+        resultado = conferir_nota(nota, bobinas, "3875")
+
+        self.assertFalse(resultado.item_unico)
+        self.assertEqual(resultado.associacoes, {})
+        self.assertTrue(resultado.pendencias)
+
+    def test_item_unico_nao_ignora_referencia_divergente(self):
+        bobinas = [self.bobina(1, "MIOLO", 600, 1830)]
+        nota = NotaFiscal("NF1", "3617", [self.item(1, "MIOLO", "600")])
+
+        resultado = conferir_nota(nota, bobinas, "9999")
+
+        self.assertFalse(resultado.item_unico)
+        self.assertEqual(resultado.associacoes, {})
 
     def test_referencia_divergente_bloqueia_associacoes(self):
         bobinas = [self.bobina(1, "MIOLO", 600, 520)]

@@ -147,3 +147,17 @@ implementação e não atribuem intenção histórica aos autores.
   [janela_historico.py](../app/janela_historico.py) e testes temporários/simulados.
 - Consequência: romaneio organiza a consulta; não autoriza recadastro da mesma
   bobina. Corrigir o campo invalida as associações anteriores da NF.
+
+## D-14 — NF de item único define a divisão do cadastro
+
+- Solicitação: quando a NF tem um só item, o sistema deve se adaptar à NF em vez
+  de bloquear por divergência entre os grupos do romaneio e o produto faturado.
+- Escolha: com item único e peso total do romaneio igual ao peso do item, todos
+  os grupos são associados a ele e o cadastro roda em uma única etapa (sem troca
+  de produto). Produto ou largura divergente vira alerta; referência de romaneio
+  divergente continua bloqueando; peso total diferente mantém a regra anterior.
+- Evidência: [nota_fiscal.py](../app/nota_fiscal.py) `conferir_nota`,
+  [cadastro.py](../app/cadastro.py) `grupo_unico`, [interface.py](../app/interface.py)
+  `_grupo_unico_nf` e testes sintéticos de NF, cadastro e interface.
+- Consequência: a separação por produto deixa de existir no EGS para essas NFs;
+  o operador seleciona uma única nota/aba antes de iniciar.

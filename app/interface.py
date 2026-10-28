@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 from queue import Queue, Empty
 from threading import Thread, Event
 from tkinter import filedialog, ttk, StringVar
@@ -36,6 +37,7 @@ class App(ctk.CTk):
         self._eventos = Queue()
         self._executando = False
         self._fechando = False
+        self._encerrar_navegador = Event()
         self._pedido = None
         self._controle = None
         self._dialogo_confirmacao = None
@@ -48,6 +50,7 @@ class App(ctk.CTk):
         self._grupos_por_rotulo = {}
         self._nota_fiscal = None
         self._associacoes_nf = {}
+        self._nf_item_unico = False
         self._dialogo_nf = None
         self.caminho_pdf = None
         self.ajuste_peso = 0
@@ -427,6 +430,7 @@ class App(ctk.CTk):
             self._dialogo_nf = None
         self._nota_fiscal = None
         self._associacoes_nf = {}
+        self._nf_item_unico = False
         self.arquivo_nf.grid_remove()
         self.botao_nf.configure(state="normal" if self.bobinas else "disabled")
 
@@ -479,10 +483,17 @@ class App(ctk.CTk):
     def _rotulo_grupo(grupo):
         return grupo.split(" // ", 1)[-1]
 
+    def _rotulos_curtos(self):
+        # "MIOLO" e "MIOLO // MIOLO" encurtariam para o mesmo rótulo; nesse
+        # caso os grupos que colidem mantêm a descrição completa.
+        curtos = Counter(self._rotulo_grupo(grupo) for grupo in self._grupos)
+        return {grupo: self._rotulo_grupo(grupo)
+                if curtos[self._rotulo_grupo(grupo)] == 1 else grupo
+                for grupo in self._grupos}
+
     def _atualizar_filtro_produtos(self):
         self._grupos_por_rotulo = {}
-        for grupo in self._grupos:
-            rotulo = self._rotulo_grupo(grupo)
+        for grupo, rotulo in self._rotulos_curtos().items():
             item_nf = self._associacoes_nf.get(grupo)
             if item_nf:
                 rotulo = f"Item {item_nf.numero} · {rotulo}"
@@ -528,9 +539,13 @@ class App(ctk.CTk):
         if nota.romaneio:
             linhas.append(f"Romaneio citado na NF: {nota.romaneio}")
         for item in nota.itens:
+            linhas.append(f"\nItem {item.numero} · {item.descricao} · {self._peso_nf(item.peso)} kg")
+            if conferencia.item_unico:
+                linhas.append(f"NF com item único: as {len(self.bobinas)} bobinas serão "
+                              "cadastradas neste item, em uma única etapa.")
+                continue
             grupo = next((g for g, candidato in conferencia.associacoes.items()
                           if candidato.numero == item.numero), None)
-            linhas.append(f"\nItem {item.numero} · {item.descricao} · {self._peso_nf(item.peso)} kg")
             linhas.append("Grupo: " + self._rotulo_grupo(grupo) if grupo else "Sem associação única.")
         if conferencia.alertas:
             linhas.append("\nConferências necessárias:\n" + "\n".join(conferencia.alertas))
@@ -555,6 +570,7 @@ class App(ctk.CTk):
             return
         self._nota_fiscal = nota
         self._associacoes_nf = dict(conferencia.associacoes)
+        self._nf_item_unico = conferencia.item_unico
         self.atualizar_resumo_produtos()
         self._atualizar_filtro_produtos()
         self.filtrar_bobinas()
@@ -564,12 +580,20 @@ class App(ctk.CTk):
         self.arquivo_nf.configure(text=mensagem,
             text_color=CORES["alerta"] if conferencia.alertas or conferencia.pendencias else CORES["sucesso"])
         self.arquivo_nf.grid()
-        self.status.configure(text="Associações da NF confirmadas. Confira o número do item no EGS ao cadastrar.")
+        self.status.configure(text=(
+            "NF com item único confirmada. O cadastro será feito em uma única etapa; "
+            "confira a nota no EGS." if self._nf_item_unico else
+            "Associações da NF confirmadas. Confira o número do item no EGS ao cadastrar."))
+
+    def _grupo_unico_nf(self):
+        if not (self._nota_fiscal and self._nf_item_unico):
+            return None
+        item = self._nota_fiscal.itens[0]
+        return f"NF {self._numero_nf(self._nota_fiscal)} · item {item.numero} · {item.descricao}"
 
     def _rotulos_cadastro(self):
         rotulos = {}
-        for grupo in self._grupos:
-            rotulo = self._rotulo_grupo(grupo)
+        for grupo, rotulo in self._rotulos_curtos().items():
             item = self._associacoes_nf.get(grupo)
             if item and self._nota_fiscal:
                 rotulo = f"NF {self._numero_nf(self._nota_fiscal)} · item {item.numero} · {rotulo}"
@@ -600,14 +624,18 @@ class App(ctk.CTk):
             botao.configure(state="disabled")
         self.botao_pausa.configure(state="normal", text="Pausar")
         self.botao_interromper.configure(state="normal")
+        # Fecha o Chromium mantido aberto pelo cadastro anterior, se houver.
+        self._encerrar_navegador.set()
+        self._encerrar_navegador = Event()
         self._thread = Thread(target=self.executar_cadastro,
                               args=(list(self.bobinas), self.ajuste_peso, self._controle,
-                                    self._rotulos_cadastro(), numero_romaneio),
+                                    self._rotulos_cadastro(), numero_romaneio,
+                                    self._grupo_unico_nf(), self._encerrar_navegador),
                               daemon=False)
         self._thread.start()
 
     def executar_cadastro(self, bobinas, ajuste_peso, controle, rotulos_grupos=None,
-                          numero_romaneio=None):
+                          numero_romaneio=None, grupo_unico=None, encerrar_navegador=None):
         # A thread de trabalho só publica mensagens; widgets pertencem
         # exclusivamente à thread principal do Tkinter.
         def evento(tipo, **dados):
@@ -622,15 +650,27 @@ class App(ctk.CTk):
             controle.verificar()
             return pedido["resposta"]
 
+        cadastro = CadastroBobinas()
         try:
-            resultado = CadastroBobinas().iniciar(
+            resultado = cadastro.iniciar(
                 bobinas, ajuste_peso, controle=controle,
                 evento=evento, solicitar=solicitar, rotulos_grupos=rotulos_grupos,
-                numero_romaneio=numero_romaneio)
+                numero_romaneio=numero_romaneio, grupo_unico=grupo_unico,
+                manter_navegador=True)
             evento("finalizado", resultado=resultado)
         except Exception as erro:
             logger.exception("Cadastro encerrado por erro")
             evento("erro", texto=str(erro))
+        finally:
+            # O Chromium fica aberto para conferência no EGS e é fechado nesta
+            # mesma thread quando o operador fecha a janela, inicia outro
+            # cadastro ou fecha o aplicativo.
+            navegador = getattr(cadastro, "navegador", None)
+            if navegador is not None:
+                try:
+                    navegador.aguardar_fechamento(encerrar_navegador or Event())
+                finally:
+                    navegador.fechar()
 
     def processar_eventos(self):
         try:
@@ -742,6 +782,7 @@ class App(ctk.CTk):
             self._mostrar_mensagem(titulo, texto, tom)
 
     def fechar_janela(self):
+        self._encerrar_navegador.set()
         if not self._executando:
             self.destroy()
             return
@@ -750,6 +791,8 @@ class App(ctk.CTk):
         self.status.configure(text="Encerrando a operação em andamento para fechar...")
 
     def destroy(self):
+        if getattr(self, "_encerrar_navegador", None):
+            self._encerrar_navegador.set()
         if getattr(self, "_timer_eventos", None):
             self.after_cancel(self._timer_eventos)
             self._timer_eventos = None

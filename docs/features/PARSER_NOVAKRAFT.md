@@ -10,8 +10,9 @@ Ambos os layouts estão implementados no commit inicial; sem testes próprios.
 Extrai texto. Título exato `Laudo Técnico da Qualidade` seleciona ramo de laudo;
 caso contrário usa romaneio. O código nominal define produto/dimensões para os
 lotes seguintes. Tenta interpretar código diretamente e depois desduplicar pares.
-Romaneio percorre tokens sem depender das quebras de linha; laudo percorre linhas
-e aceita colunas de ensaio ignoradas na saída.
+Romaneio percorre tokens sem depender das quebras de linha; o pedido do cliente é
+usado como referência do romaneio quando não existe número próprio. Laudo percorre
+linhas e aceita colunas de ensaio ignoradas na saída.
 
 ## Regras de negócio
 [RN-07 a RN-09](../BUSINESS_RULES.md). NEBX → MIOLO; prefixo diferente permanece.
@@ -28,8 +29,9 @@ Código: letras + gramatura (3) + diâmetro (4) + formato (4).
 
 ## Entradas e saídas
 Caminho PDF → `(bobinas, 0)`. Número recebe lote; testes de qualidade não são
-persistidos. Romaneio troca vírgula por ponto no peso; laudo remove vírgulas
-antes de float/round. Não unificar essas conversões como se já fossem iguais.
+persistidos. No romaneio, peso pt-BR remove pontos de milhar e troca vírgula por
+ponto antes de `float/round`; também aceita `/ /` quando data e turno ainda não
+foram preenchidos. O laudo mantém sua conversão própria.
 
 ## Persistência de dados
 Nenhuma; contexto de produto é mantido durante análise do texto.
@@ -46,8 +48,8 @@ Separadores numéricos não previstos podem gerar ValueError.
 Novakraft no menu; escolha de laudo/romaneio é interna, sem opção separada.
 
 ## Testes relacionados
-Não identificado teste automatizado direto. Comentários explicam casos de
-caracteres duplicados, mas não equivalem a fixtures ou resultados de homologação.
+O romaneio V26654 foi validado localmente, incluindo código duplicado, peso pt-BR
+e a ausência de data/turno. Não há fixture operacional versionada.
 
 ## Limitações conhecidas
 Conversões numéricas divergentes, dependência de texto e contexto do produto;

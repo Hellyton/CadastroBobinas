@@ -17,8 +17,10 @@ acima de 1000 permanece agrupado somente por produto. Cada grupo mostra seu
 próprio peso. A importação de NF é opcional e gera sugestões para revisão
 humana; a seleção da aba/nota correspondente continua manual no EGS. Para cada bobina, verifica
 controle/saldo, abre Novo, preenche, salva e marca histórico; registra
-sucesso/falha e progresso. No final faz conferência global; sempre tenta fechar
-navegador no finally.
+sucesso/falha e progresso. No final faz conferência global e, só no término
+normal, sai do EGS (`Navegador.sair_do_sistema`); fecha o navegador no
+finally, exceto com `manter_navegador=True`, quando a interface o mantém aberto
+para conferência ([CONTROLE_EXECUCAO](CONTROLE_EXECUCAO.md)).
 
 ## Regras de negócio
 [RN-16 a RN-20, RN-24 a RN-29](../BUSINESS_RULES.md). Leia a regra específica

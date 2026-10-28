@@ -54,8 +54,10 @@ class CadastroBobinas:
 
     def iniciar(self, bobinas, ajuste_peso=0, url=None, usar_historico=True,
                 controle=None, evento=None, solicitar=None,
-                rotulos_grupos=None, numero_romaneio=None):
-        # O navegador nasce, trabalha e fecha na mesma thread.
+                rotulos_grupos=None, numero_romaneio=None, grupo_unico=None,
+                manter_navegador=False):
+        # O navegador nasce, trabalha e fecha na mesma thread. Com
+        # manter_navegador, quem chamou fecha `self.navegador` nessa thread.
         self.controle = controle or ControleCadastro()
         self.evento = evento or (lambda tipo, **dados: None)
         self.solicitar = solicitar
@@ -65,15 +67,16 @@ class CadastroBobinas:
         self.ignoradas = 0
         self.motivo_parada = ""
         self.numero_romaneio = str(numero_romaneio).strip() if numero_romaneio is not None else ""
-        navegador = Navegador()
+        navegador = self.navegador = Navegador()
         try:
             self.controle.verificar()
             return self._executar(navegador, bobinas, ajuste_peso, url,
-                                  usar_historico, rotulos_grupos)
+                                  usar_historico, rotulos_grupos, grupo_unico)
         except CadastroInterrompido:
             return self._resultado(interrompido=True)
         finally:
-            navegador.fechar()
+            if not manter_navegador:
+                navegador.fechar()
 
     def _resultado(self, interrompido=False):
         return dict(sucessos=len(self.sucessos), falhas=len(self.falhas),
@@ -97,7 +100,7 @@ class CadastroBobinas:
         return resposta
 
     def _executar(self, navegador, bobinas, ajuste_peso, url, usar_historico,
-                  rotulos_grupos=None):
+                  rotulos_grupos=None, grupo_unico=None):
 
         self.evento("status", texto="Abrindo o sistema e fazendo login...")
         navegador.abrir()
@@ -140,14 +143,18 @@ class CadastroBobinas:
 
         # Agrupa por produto e separa pontas por largura, mantendo a ordem
         # de aparição; cada grupo pode corresponder a uma aba/nota diferente.
-        grupos_originais = agrupar_bobinas(pendentes, variantes_produtos)
+        # NF de item único define a divisão: todo o lote vai para uma etapa.
         rotulos_grupos = rotulos_grupos or {}
         grupos = {}
-        for chave, lista in grupos_originais.items():
-            rotulo = rotulos_grupos.get(chave, chave)
-            if rotulo in grupos:
-                raise ValueError(f"Rótulo de grupo duplicado: {rotulo!r}.")
-            grupos[rotulo] = lista
+        if grupo_unico:
+            if pendentes:
+                grupos[grupo_unico] = pendentes
+        else:
+            for chave, lista in agrupar_bobinas(pendentes, variantes_produtos).items():
+                rotulo = rotulos_grupos.get(chave, chave)
+                if rotulo in grupos:
+                    raise ValueError(f"Rótulo de grupo duplicado: {rotulo!r}.")
+                grupos[rotulo] = lista
 
         total = len(pendentes)
         self.total = total
@@ -335,6 +342,13 @@ class CadastroBobinas:
         else:
             print("Todas as bobinas foram cadastradas com sucesso.")
             logger.info("Todas as bobinas foram cadastradas com sucesso.")
+
+        # Só ao terminar normalmente: paradas e erros mantêm a sessão para conferência.
+        self.evento("status", texto="Saindo do EGS...")
+        if navegador.sair_do_sistema():
+            logger.info("Sessão do EGS encerrada ao final do cadastro.")
+        else:
+            print("\nNão foi possível sair do EGS automaticamente; saia manualmente.")
 
         if not self.solicitar:
             input("Pressione ENTER para fechar...")

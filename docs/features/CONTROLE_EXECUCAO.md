@@ -11,6 +11,9 @@ Implementado no commit inicial; testes simulados de controle passaram.
 Worker publica eventos; janela consome Queue a cada 100 ms. Confirmação usa Event
 e resposta da janela. Controle libera/bloqueia pontos de verificação. Ao fechar
 janela durante cadastro, solicita interrupção e espera thread antes de destroy.
+Ao terminar, o worker mantém o Chromium aberto (`Navegador.aguardar_fechamento`)
+até o operador fechá-lo ou `_encerrar_navegador` ser sinalizado por novo cadastro,
+`fechar_janela` ou `destroy`; só então chama `fechar` na mesma thread.
 
 ## Regras de negócio
 [RN-26, RN-27 e RN-29](../BUSINESS_RULES.md); [ARCHITECTURE](../ARCHITECTURE.md)

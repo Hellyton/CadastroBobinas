@@ -4,6 +4,39 @@ Não há versão semântica/tag identificada. Datas de commits abaixo vêm do Gi
 não indicam data de implantação no EGS. Mudanças locais não recebem data de
 implementação inferida. Motivos e trade-offs: [DECISIONS](DECISIONS.md).
 
+## 2026-10-28 — Saída do EGS ao final do cadastro
+
+- Ao terminar normalmente, o sistema fecha a Classificação de Bobinas, clica no
+  ícone desligar, confirma em **Sim** e aguarda a tela de login. O navegador
+  continua aberto. Paradas por saldo, interrupções e erros mantêm a sessão.
+- Falha na saída é registrada no log e não muda o resultado do cadastro.
+- 92 testes aprovados, incluindo fluxo de saída simulado em Chromium local; sem EGS.
+
+## 2026-10-28 — Navegador permanece aberto ao final do cadastro
+
+- O Chromium não fecha mais sozinho ao terminar a classificação (fim, parada,
+  interrupção ou erro). Fecha quando o operador fecha a janela, quando um novo
+  cadastro começa ou quando o aplicativo é fechado, sempre na thread do cadastro.
+- 89 testes aprovados; espera conferida em Chromium headless local, sem EGS.
+
+## 2026-10-28 — NF de item único e rótulos duplicados no cadastro
+
+- NF com um só item e peso total igual ao do romaneio agora associa todos os
+  grupos a esse item; **Usar associações** fica habilitado e o cadastro roda em
+  uma única etapa. Produto divergente (ex.: RECICLADO faturado como MIOLO) gera alerta.
+- Corrigido o erro `Rótulo de grupo duplicado: 'MIOLO'` quando o romaneio tem as
+  descrições `MIOLO` e `MIOLO // MIOLO`; grupos que colidem mantêm a descrição completa.
+- 84 testes aprovados; PDFs de NF/romaneio informados conferidos localmente, sem EGS.
+
+## 2026-10-28 — Correção de leitura do romaneio Novakraft V26654
+
+- Corrigida a conversão de peso pt-BR no romaneio: `1.583,00` agora resulta em
+  1583 kg, sem erro de conversão.
+- Linhas Novakraft com `/ /` no lugar de data e turno também são importadas.
+- Para esse layout, o pedido do cliente (`V26654/01`) preenche a referência do
+  romaneio quando não houver número próprio no documento.
+- O PDF operacional não foi versionado e nenhuma ação no EGS foi executada.
+
 ## 2026-10-16 — Confirmação do aviso de peso em cada classificação
 
 - Aviso de peso zero tem espera de aparição, clique no OK do próprio popup e

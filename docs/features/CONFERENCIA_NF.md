@@ -21,6 +21,11 @@ correspondência é única, respeitando um item por grupo e um grupo por item.
 Pesos repetidos/ambíguos não recebem associação arbitrária. Largura divergente
 gera alerta, mas mantém sugestão única para avaliação humana. Referência de
 romaneio divergente bloqueia associações; referência ausente gera alerta.
+Exceção de item único: se a NF tem um só item e o peso total do romaneio é
+igual ao peso desse item, a NF define a divisão. Todos os grupos são associados
+ao item (`item_unico=True`) e o cadastro roda em uma única etapa. Produto ou
+largura divergente gera alerta, sem bloquear; peso total diferente segue a regra
+geral e referência divergente continua bloqueando.
 
 ## Arquivos relacionados
 [nota_fiscal.py](../../app/nota_fiscal.py), [agrupamento.py](../../app/agrupamento.py),
@@ -35,7 +40,8 @@ romaneio divergente bloqueia associações; referência ausente gera alerta.
 `ler_nota_fiscal(caminho)` retorna `NotaFiscal(numero, romaneio, itens)`.
 `ItemNotaFiscal.numero` é a sequência/linha do item na tabela da NF, não o código
 do produto. `conferir_nota(nota, bobinas, numero_romaneio=None)` retorna
-associações por grupo, pendências, alertas e indicador de referência compatível.
+associações por grupo, pendências, alertas, indicador de referência compatível
+e `item_unico`.
 Peso é Decimal em kg; largura fica ausente quando não está explicitamente
 identificada no documento.
 
@@ -61,6 +67,9 @@ apresenta propostas por item, alertas e pendências para confirmação. Ao aceit
 os rótulos sugeridos aparecem nos cartões, filtro e escolha do cadastro; o
 operador ainda confere e seleciona manualmente a aba/item no EGS. Importar um
 novo romaneio limpa a NF e suas associações anteriores.
+Com NF de item único confirmada, a interface envia `grupo_unico` ao cadastro:
+todas as bobinas pendentes formam uma etapa rotulada `NF <n> · item <i> · <descrição>`,
+sem escolha de próximo produto. O operador seleciona essa nota no EGS antes de iniciar.
 Corrigir o campo Nº do romaneio também limpa a conferência anterior; a próxima
 comparação usa o número informado na interface como referência.
 
@@ -69,6 +78,8 @@ comparação usa o número informado na interface como referência.
 correspondência exata, duplicatas e linhas inválidas. Os testes não usam PDFs
 operacionais.
 Regressões cobrem valores monetários concatenados e recusa de quantidades malformadas.
+Item único é coberto em `test_nota_fiscal.py`, `test_agrupamento.py` (cadastro em
+uma etapa) e `test_interface.py` (envio de `grupo_unico` e rótulos sem colisão).
 
 ## Limitações conhecidas
 Parser direcionado ao layout textual DANFE ADF; não lê XML nem executa OCR.
